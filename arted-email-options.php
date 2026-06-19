@@ -1,6 +1,4 @@
 <?php
-// WPCode-ID: 3102
-// WPCode-Name: arted-email-options
 // ── Шаблоны писем RU/EN/FR ────────────────────────────────────────────────
 add_action('admin_menu', function() {
     add_menu_page('Письма Gallery', 'Письма Gallery', 'manage_options',

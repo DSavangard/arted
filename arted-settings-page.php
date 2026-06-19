@@ -1,6 +1,4 @@
 <?php
-// WPCode-ID: 3104
-// WPCode-Name: Arted-settings-page
 // ── Страница настроек галереи (Telegram и др.) ────────────────────────────
 add_action('admin_menu', function() {
     add_menu_page('Настройки Gallery', 'Настройки Gallery', 'manage_options',

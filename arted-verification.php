@@ -1,6 +1,4 @@
 <?php
-// WPCode-ID: ???
-// WPCode-Name: arted-verification
 // ── 1. AJAX: художник запрашивает верификацию ─────────────────────────────
 add_action('wp_ajax_arted_request_verification', function() {
     if (!is_user_logged_in() || !arted_is_artist()) wp_send_json_error('unauthorized');
