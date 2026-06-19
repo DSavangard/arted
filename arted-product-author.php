@@ -88,44 +88,46 @@ function arted_product_author_single() {
     }
     echo '</div>';
 }
-?>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    if (!window.artedAuthorData) return;
 
-    // Ищем карточки товаров — поддерживаем Elementor Loop Item и стандартный WC
-    document.querySelectorAll('[data-product_id], .product[class*="post-"], li.product').forEach(function(card) {
-        var id = card.getAttribute('data-product_id')
-               || card.className.match(/post-(\d+)/)?.[1];
-        if (!id || !artedAuthorData[id]) return;
+add_action('wp_footer', 'arted_product_author_js');
+function arted_product_author_js() {
+    ?>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!window.artedAuthorData) return;
 
-        var data = artedAuthorData[id];
+        document.querySelectorAll('[data-product_id], .product[class*="post-"], li.product').forEach(function(card) {
+            var id = card.getAttribute('data-product_id')
+                   || (card.className.match(/post-(\d+)/) || [])[1];
+            if (!id || !artedAuthorData[id]) return;
 
-        // Не добавляем дважды
-        if (card.querySelector('.arted-product-author')) return;
+            var data = artedAuthorData[id];
 
-        var div = document.createElement('div');
-        div.className = 'arted-product-author';
+            if (card.querySelector('.arted-product-author')) return;
 
-        var text = data.name;
-        if (data.city) text += ', ' + data.city;
+            var div = document.createElement('div');
+            div.className = 'arted-product-author';
 
-        if (data.url) {
-            var a = document.createElement('a');
-            a.href = data.url;
-            a.textContent = text;
-            div.appendChild(a);
-        } else {
-            div.textContent = text;
-        }
+            var text = data.name;
+            if (data.city) text += ', ' + data.city;
 
-        // Вставляем после заголовка
-        var title = card.querySelector('.woocommerce-loop-product__title, h2.product_title, h3');
-        if (title) {
-            title.parentNode.insertBefore(div, title.nextSibling);
-        } else {
-            card.appendChild(div);
-        }
+            if (data.url) {
+                var a = document.createElement('a');
+                a.href = data.url;
+                a.textContent = text;
+                div.appendChild(a);
+            } else {
+                div.textContent = text;
+            }
+
+            var title = card.querySelector('.woocommerce-loop-product__title, h2.product_title, h3');
+            if (title) {
+                title.parentNode.insertBefore(div, title.nextSibling);
+            } else {
+                card.appendChild(div);
+            }
+        });
     });
-});
-</script>
+    </script>
+    <?php
+}
