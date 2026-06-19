@@ -55,16 +55,15 @@ function arted_product_author_data() {
     <script>
     window.artedAuthorUrls = <?= json_encode($map) ?>;
 
-    // Capture phase: перехватываем клик ДО того как <a> его получит.
-    // z-index: 10 на .product-author-name гарантирует что e.target = сам элемент.
+    // Capture phase: e-con-inner (Elementor) перехватывает все клики на карточке.
+    // e.target всегда e-con-inner, closest() не находит .product-author-name (сестринский элемент).
+    // Решение: проверяем координаты клика через getBoundingClientRect.
+    // CSS display:none убран — элемент видим и имеет реальные размеры.
     document.addEventListener('click', function(e) {
-        // e.target может быть текстовым узлом (nodeType 3) — берём parentElement
         var target = e.target.nodeType === 3 ? e.target.parentElement : e.target;
         if (!target) return;
-        var el = target.closest('.product-author-name, .product-author-city');
-        if (!el) return;
 
-        var li = el.closest('li.product');
+        var li = target.closest('li.product');
         if (!li) return;
 
         var m = li.className.match(/\bpost-(\d+)\b/);
@@ -73,17 +72,23 @@ function arted_product_author_data() {
         var url = window.artedAuthorUrls && window.artedAuthorUrls[m[1]];
         if (!url) return;
 
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        window.location.href = url;
+        var authorEl = li.querySelector('.product-author-name');
+        if (!authorEl) return;
+
+        var rect = authorEl.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+
+        if (e.clientX >= rect.left && e.clientX <= rect.right &&
+            e.clientY >= rect.top  && e.clientY <= rect.bottom) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            window.location.href = url;
+        }
     }, true);
     </script>
     <style>
-    /* Поднимаем выше e-con-inner (Elementor), чтобы клики попадали на элемент */
     .product-author-name,
     .product-author-city {
-        position: relative;
-        z-index: 10;
         cursor: pointer;
     }
     .product-author-name:hover {

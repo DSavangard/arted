@@ -544,18 +544,3 @@ body.dark-theme {
     padding-top: 8px;
 }
 
-/* ── Автор на карточках товаров ──────────────────────────
-   Elementor рендерит .product-author-name как прямой дочерний элемент <a>.
-   Наша версия вложена в .product-author-block — > не задевает её. */
-.woocommerce-LoopProduct-link > .product-author-name,
-.woocommerce-LoopProduct-link > .product-author-city {
-    display: none !important;
-}
-.product-author-block {
-    display: flex;
-    flex-direction: column;
-    cursor: pointer;
-}
-.product-author-block:hover .product-author-name {
-    text-decoration: underline;
-}
