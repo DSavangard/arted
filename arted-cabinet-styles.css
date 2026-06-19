@@ -1,0 +1,318 @@
+/* ═══════════════════════════════════════════════════════
+   ARTED — Кабинет художника
+   Светлая тема (default) + тёмная (.dark-theme)
+═══════════════════════════════════════════════════════ */
+
+/* ── Переменные ──────────────────────────────────────── */
+:root {
+    --cab-bg:           #f5f5f5;
+    --cab-surface:      #ffffff;
+    --cab-surface-2:    #f0f0f0;
+    --cab-border:       #e0e0e0;
+    --cab-text:         #1a1a1a;
+    --cab-text-muted:   #888888;
+    --cab-text-hint:    #bbbbbb;
+    --cab-accent:       #FD2E04;
+    --cab-accent-hover: #cc2400;
+    --cab-nav-active:   #FD2E04;
+}
+
+body.dark-theme {
+    --cab-bg:           #070707;
+    --cab-surface:      #111111;
+    --cab-surface-2:    #1a1a1a;
+    --cab-border:       #222222;
+    --cab-text:         #cccccc;
+    --cab-text-muted:   #555555;
+    --cab-text-hint:    #333333;
+    --cab-accent:       #FD2E04;
+    --cab-accent-hover: #ff4422;
+    --cab-nav-active:   #FD2E04;
+}
+
+/* ── Обёртка страницы my-account ─────────────────────── */
+.woocommerce-account .woocommerce {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+}
+
+/* ── Скрываем стандартное боковое меню WooCommerce ───── */
+.woocommerce-account .woocommerce-MyAccount-navigation {
+    display: none !important;
+}
+
+/* ── Шапка кабинета ──────────────────────────────────── */
+.arted-cab-header {
+    background: var(--cab-surface);
+    border-bottom: 1px solid var(--cab-border);
+    margin: 0 -24px 32px;
+    padding: 0 24px;
+}
+
+.arted-cab-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0 16px;
+}
+
+.arted-cab-name {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cab-text);
+}
+
+.arted-cab-badge {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--cab-border);
+    color: var(--cab-text-muted);
+}
+
+.arted-cab-badge.verified {
+    border-color: var(--cab-accent);
+    color: var(--cab-accent);
+}
+
+/* ── Горизонтальная навигация ────────────────────────── */
+.arted-cab-nav {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.arted-cab-nav::-webkit-scrollbar { display: none; }
+
+.arted-cab-nav a {
+    display: block;
+    color: var(--cab-text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 12px 20px;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.15s;
+}
+
+.arted-cab-nav a:hover {
+    color: var(--cab-text);
+}
+
+.arted-cab-nav a.active,
+.arted-cab-nav a.current-menu-item {
+    color: var(--cab-text);
+    border-bottom-color: var(--cab-accent);
+}
+
+.arted-cab-nav a.arted-nav-add {
+    color: var(--cab-accent);
+}
+
+/* ── Контент вкладок ─────────────────────────────────── */
+.woocommerce-account .woocommerce-MyAccount-content {
+    float: none !important;
+    width: 100% !important;
+    padding: 0 !important;
+}
+
+/* ── Метрики (4 карточки) ────────────────────────────── */
+.arted-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+}
+
+@media (max-width: 768px) {
+    .arted-metrics { grid-template-columns: repeat(2, 1fr); }
+}
+
+.arted-metric {
+    background: var(--cab-surface);
+    border: 1px solid var(--cab-border);
+    border-radius: 6px;
+    padding: 20px;
+}
+
+.arted-metric-label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--cab-text-muted);
+    margin-bottom: 10px;
+}
+
+.arted-metric-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--cab-text);
+}
+
+.arted-metric-value.accent { color: var(--cab-accent); }
+
+/* ── Секция событий ──────────────────────────────────── */
+.arted-section-title {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--cab-text-hint);
+    margin-bottom: 14px;
+}
+
+.arted-events {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 32px;
+}
+
+.arted-event {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--cab-surface);
+    border: 1px solid var(--cab-border);
+    border-radius: 6px;
+}
+
+.arted-event-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--cab-border);
+    flex-shrink: 0;
+}
+
+.arted-event-dot.green  { background: #2d6a1f; }
+.arted-event-dot.red    { background: #FD2E04; }
+.arted-event-dot.blue   { background: #185FA5; }
+
+.arted-event-text {
+    font-size: 13px;
+    color: var(--cab-text-muted);
+    flex: 1;
+}
+
+.arted-event-text strong {
+    color: var(--cab-text);
+    font-weight: 500;
+}
+
+.arted-event-time {
+    font-size: 11px;
+    color: var(--cab-text-hint);
+}
+
+/* ── Кнопки ──────────────────────────────────────────── */
+.arted-btn-primary {
+    display: inline-block;
+    background: var(--cab-accent);
+    color: #ffffff !important;
+    border: none;
+    padding: 12px 24px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.arted-btn-primary:hover {
+    background: var(--cab-accent-hover);
+}
+
+.arted-btn-secondary {
+    display: inline-block;
+    background: transparent;
+    color: var(--cab-text-muted) !important;
+    border: 1px solid var(--cab-border);
+    padding: 12px 24px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: all 0.15s;
+}
+
+.arted-btn-secondary:hover {
+    border-color: var(--cab-text-muted);
+    color: var(--cab-text) !important;
+}
+
+.arted-cab-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* ── Баннер незаполненного профиля ───────────────────── */
+.arted-profile-banner {
+    background: var(--cab-surface);
+    border: 1px solid var(--cab-border);
+    border-left: 3px solid var(--cab-accent);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.arted-profile-banner-text {
+    font-size: 13px;
+    color: var(--cab-text-muted);
+}
+
+.arted-progress-bar {
+    height: 3px;
+    background: var(--cab-border);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.arted-progress-fill {
+    height: 100%;
+    background: var(--cab-accent);
+    border-radius: 2px;
+    transition: width 0.3s;
+}
+
+/* ── Бейдж непрочитанных ─────────────────────────────── */
+.arted-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cab-accent);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.woocommerce-account.arted-artist-page .woocommerce > h1,
+.woocommerce-account.arted-artist-page .woocommerce > h2 {
+    display: none;
+}
