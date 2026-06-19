@@ -58,23 +58,29 @@ function arted_github_sync_one($filename, $post_id) {
     $result = arted_github_fetch($filename);
     if (!$result['ok']) return $result;
 
-    $updated = wp_update_post([
-        'ID'           => (int) $post_id,
-        'post_content' => $result['body'],
-    ], true);
-
-    if (is_wp_error($updated)) return ['ok' => false, 'error' => $updated->get_error_message()];
-
-    // Debug: первые 30 символов
-    $preview = substr($result['body'], 0, 30);
-
-    // Сбрасываем кэш WPCode
-    wp_cache_delete($post_id, 'posts');
-    wp_cache_delete($post_id, 'post_meta');
+    // Прямая запись в БД минуя все хуки и кэши
     global $wpdb;
-    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_wpcode%' OR option_name LIKE '_transient_timeout_wpcode%'");
+    $rows = $wpdb->update(
+        $wpdb->posts,
+        [
+            'post_content'      => $result['body'],
+            'post_modified'     => current_time('mysql'),
+            'post_modified_gmt' => current_time('mysql', true),
+        ],
+        ['ID' => (int) $post_id],
+        ['%s', '%s', '%s'],
+        ['%d']
+    );
 
-    return ['ok' => true, 'preview' => $preview];
+    if ($rows === false) return ['ok' => false, 'error' => $wpdb->last_error ?: 'DB error'];
+
+    // Сбрасываем все кэши
+    clean_post_cache($post_id);
+    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_wpcode%' OR option_name LIKE '_transient_timeout_wpcode%'");
+    wp_cache_flush();
+
+    $preview = substr($result['body'], 0, 40);
+    return ['ok' => true, 'preview' => $preview, 'rows' => $rows];
 }
 
 function arted_github_sync_page() {
