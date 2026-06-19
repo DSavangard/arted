@@ -70,13 +70,13 @@ function arted_product_author_data() {
         if (!m) return;
 
         var url = window.artedAuthorUrls && window.artedAuthorUrls[m[1]];
-        if (!url) return;
 
         var authorEl = li.querySelector('.product-author-name');
-        if (!authorEl) return;
+        var rect = authorEl ? authorEl.getBoundingClientRect() : null;
 
-        var rect = authorEl.getBoundingClientRect();
-        if (!rect.width || !rect.height) return;
+        console.log('[arted] li:', m[1], '| url:', url, '| rect:', rect ? rect.top+'..'+rect.bottom : 'no el', '| click Y:', e.clientY, '| match:', rect ? (e.clientY >= rect.top && e.clientY <= rect.bottom) : false);
+
+        if (!url || !rect || !rect.width || !rect.height) return;
 
         if (e.clientX >= rect.left && e.clientX <= rect.right &&
             e.clientY >= rect.top  && e.clientY <= rect.bottom) {
