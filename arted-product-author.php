@@ -56,11 +56,12 @@ function arted_product_author_data() {
     window.artedAuthorUrls = <?= json_encode($map) ?>;
 
     // Capture phase: перехватываем клик ДО того как <a> его получит.
-    // e-con-inner (Elementor) перекрывает .product-author-name, поэтому
-    // e.target всегда e-con-inner, а не сам элемент автора.
-    // Решение: проверяем по координатам клика через getBoundingClientRect.
+    // z-index: 10 на .product-author-name гарантирует что e.target = сам элемент.
     document.addEventListener('click', function(e) {
-        var li = e.target.closest('li.product');
+        var el = e.target.closest('.product-author-name, .product-author-city');
+        if (!el) return;
+
+        var li = el.closest('li.product');
         if (!li) return;
 
         var m = li.className.match(/\bpost-(\d+)\b/);
@@ -69,27 +70,20 @@ function arted_product_author_data() {
         var url = window.artedAuthorUrls && window.artedAuthorUrls[m[1]];
         if (!url) return;
 
-        var authorEl = li.querySelector('.product-author-name');
-        if (!authorEl) return;
-
-        var rect = authorEl.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) return;
-
-        if (e.clientX >= rect.left && e.clientX <= rect.right &&
-            e.clientY >= rect.top  && e.clientY <= rect.bottom) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            window.location.href = url;
-        }
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        window.location.href = url;
     }, true);
     </script>
     <style>
+    /* Поднимаем выше e-con-inner (Elementor), чтобы клики попадали на элемент */
     .product-author-name,
     .product-author-city {
+        position: relative;
+        z-index: 10;
         cursor: pointer;
     }
-    .woocommerce-LoopProduct-link .product-author-name:hover,
-    .woocommerce-LoopProduct-link .product-author-city:hover {
+    .product-author-name:hover {
         text-decoration: underline;
     }
     </style>
