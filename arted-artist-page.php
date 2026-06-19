@@ -30,15 +30,15 @@ add_action('template_redirect', function() {
 // ── 3. Рендер страницы художника ──────────────────────────────────────────
 function arted_render_artist_page($user) {
     $user_id  = $user->ID;
+    // Убираем WooCommerce/Elementor контент ДО get_header()
     add_filter('woocommerce_is_shop', '__return_false');
     add_filter('woocommerce_is_product_category', '__return_false');
+    add_filter('elementor/frontend/the_content', '__return_empty_string');
     remove_action('woocommerce_before_main_content', 'woocommerce_output_content_wrapper', 10);
     remove_action('woocommerce_after_main_content', 'woocommerce_output_content_wrapper_end', 10);
-    add_action('pre_get_posts', function($q) {
-        if ($q->is_main_query() && !is_admin()) {
-            $q->set('post__in', [0]);
-        }
-    }, 20);
+    remove_all_actions('woocommerce_before_main_content');
+    remove_all_actions('woocommerce_after_main_content');
+    remove_all_actions('woocommerce_sidebar');
     $lang     = function_exists('arted_get_lang') ? arted_get_lang() : 'ru';
     $verified = get_user_meta($user_id, 'arted_artist_verified', true);
 
@@ -124,12 +124,8 @@ function arted_render_artist_page($user) {
     });
 
     get_header();
-    remove_all_actions('woocommerce_before_main_content');
-    remove_all_actions('woocommerce_after_main_content');
-    remove_all_actions('woocommerce_sidebar');
     remove_action('woocommerce_before_shop_loop', 'woocommerce_result_count', 20);
     remove_action('woocommerce_before_shop_loop', 'woocommerce_catalog_ordering', 30);
-    add_filter('elementor/frontend/the_content', '__return_empty_string');
     ?>
     <div class="arted-artist-page-wrap">
 

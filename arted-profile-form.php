@@ -183,6 +183,10 @@ function arted_tab_profile() {
 
     echo '<div class="arted-tab-content arted-profile-wrap">';
 
+    if (!empty($_GET['profile_saved'])) {
+        echo '<div class="arted-profile-saved">' . esc_html($l['saved']) . ' ✓</div>';
+    }
+
     // Прогресс шагов
     echo '<div class="arted-steps">';
     foreach ($l['steps'] as $i => $step_name) {

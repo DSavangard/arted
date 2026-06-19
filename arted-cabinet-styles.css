@@ -80,6 +80,11 @@ body.dark-theme {
     color: var(--cab-accent);
 }
 
+.arted-cab-badge.pending {
+    border-color: #b58a00;
+    color: #b58a00;
+}
+
 /* ── Горизонтальная навигация ────────────────────────── */
 .arted-cab-nav {
     display: flex;

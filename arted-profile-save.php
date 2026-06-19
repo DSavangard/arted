@@ -18,7 +18,7 @@ function arted_handle_profile_save() {
         foreach ($fields as $f) {
             if (isset($_POST[$f])) update_user_meta($user_id, $f, sanitize_text_field($_POST[$f]));
         }
-        if (!empty($_POST['arted_bio'])) {
+        if (isset($_POST['arted_bio'])) {
             update_user_meta($user_id, 'arted_bio', sanitize_textarea_field($_POST['arted_bio']));
         }
         if (!empty($_POST['arted_artist_name'])) {

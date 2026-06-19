@@ -292,15 +292,6 @@ a.arted-step {
     margin-bottom: 0;
 }
 
-.arted-section-title {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .07em;
-    text-transform: uppercase;
-    color: var(--cab-text-muted);
-    margin-bottom: 8px;
-}
-
 /* ── Form nav ────────────────────────────────────────────────────────────── */
 .arted-form-nav {
     display: flex;
