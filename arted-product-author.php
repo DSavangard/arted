@@ -113,6 +113,7 @@ function arted_product_author_data() {
     }
     .product-author-name:hover {
         text-decoration: underline;
+        color: #FD2E04;
     }
     </style>
     <?php
