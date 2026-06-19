@@ -1,4 +1,6 @@
 <?php
+// WPCode-ID: 3098
+// WPCode-Name: arted-artist-role
 // ── Скрыть админбар для художников ───────────────────────────────────────
 add_filter('show_admin_bar', function($show) {
     if (!is_user_logged_in()) return $show;

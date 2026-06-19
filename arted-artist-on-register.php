@@ -1,4 +1,6 @@
 <?php
+// WPCode-ID: 3103
+// WPCode-Name: arted-artist-on-register
 // ── Email + Telegram при регистрации художника ────────────────────────────
 add_action('woocommerce_created_customer', 'arted_artist_on_register', 20, 3);
 function arted_artist_on_register($customer_id, $new_customer_data, $password_generated) {

@@ -1,4 +1,6 @@
 <?php
+// WPCode-ID: 3100
+// WPCode-Name: arted-artist-register-form
 // ── Переключатель роли на форме регистрации ───────────────────────────────
 add_action('woocommerce_register_form', 'arted_register_role_switcher', 5);
 function arted_register_role_switcher() {

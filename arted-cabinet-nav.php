@@ -1,4 +1,6 @@
 <?php
+// WPCode-ID: 3105
+// WPCode-Name: arted-cabinet-nav
 // ── Хелпер проверки роли ──────────────────────────────────────────────────
 function arted_is_artist() {
     if (!is_user_logged_in()) return false;
