@@ -1,6 +1,6 @@
 <?php
-// ── [artedAuthorData JS удалён — автор теперь через ACF + Elementor] ──────
-if (false) {
+// ── Передаём URL профиля художника в JS — для ссылок на карточках ─────────
+add_action('wp_footer', 'arted_product_author_data');
 function arted_product_author_data() {
     if (!is_shop() && !is_product_category() && !is_product_tag() && !is_front_page() && !is_home() && !is_page()) return;
 
@@ -17,34 +17,45 @@ function arted_product_author_data() {
         $author_id = (int) $post->post_author;
         $user      = get_user_by('id', $author_id);
 
-        // Сначала пробуем user meta (продукты художников из кабинета)
         if ($user && in_array('artist', (array) $user->roles)) {
-            $name = get_user_meta($author_id, 'arted_artist_name', true) ?: $user->display_name;
-            $city = get_user_meta($author_id, 'arted_artist_city', true);
-            $url  = home_url('/artist/' . $user->user_nicename . '/');
+            $url = home_url('/artist/' . $user->user_nicename . '/');
         } else {
-            // Старые продукты с ACF полями
             $name = function_exists('get_field') ? get_field('author_name', $id) : '';
-            $city = function_exists('get_field') ? get_field('author_city', $id) : '';
             $url  = '';
-            // Ищем пользователя-художника по имени
             if ($name) {
                 $users = get_users(['role' => 'artist', 'meta_key' => 'arted_artist_name', 'meta_value' => $name]);
-                if (!empty($users)) {
-                    $url = home_url('/artist/' . $users[0]->user_nicename . '/');
-                }
+                if (!empty($users)) $url = home_url('/artist/' . $users[0]->user_nicename . '/');
             }
         }
 
-        if ($name) {
-            $map[$id] = ['name' => $name, 'city' => $city, 'url' => $url];
-        }
+        if ($url) $map[$id] = $url;
     }
 
     if (empty($map)) return;
-    echo '<script>window.artedAuthorData = ' . json_encode($map) . ';</script>';
+
+    ?>
+    <script>
+    window.artedAuthorUrls = <?= json_encode($map) ?>;
+    (function() {
+        function linkAuthors() {
+            if (!window.artedAuthorUrls) return;
+            document.querySelectorAll('li.product, .e-loop-item').forEach(function(card) {
+                var m = card.className.match(/\bpost-(\d+)\b/);
+                if (!m) return;
+                var url = artedAuthorUrls[m[1]];
+                if (!url) return;
+                card.querySelectorAll('.product-author-name').forEach(function(el) {
+                    if (el.querySelector('a')) return;
+                    el.innerHTML = '<a href="' + url + '">' + el.textContent + '</a>';
+                });
+            });
+        }
+        setTimeout(linkAuthors, 400);
+        setTimeout(linkAuthors, 1200);
+    })();
+    </script>
+    <?php
 }
-} // end if(false)
 
 // ── Автозапись author_name/author_city из профиля художника ──────────────
 add_action('save_post_product', 'arted_sync_author_fields', 999);
@@ -110,6 +121,7 @@ function arted_product_author_loop() {
 // ── Автор на странице одного товара (WC хук работает на single) ───────────
 add_action('woocommerce_single_product_summary', 'arted_product_author_single', 4);
 function arted_product_author_single() {
+    if (!is_product()) return;
     global $product;
     if (!$product) return;
     $id        = $product->get_id();
