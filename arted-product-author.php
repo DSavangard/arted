@@ -136,28 +136,33 @@ function arted_product_author_js() {
         function fillAuthors() {
             if (!window.artedAuthorData) return;
 
-            // Elementor Loop Items используют класс e-loop-item-{ID}
-            document.querySelectorAll('[class*="e-loop-item-"]').forEach(function(card) {
-                var m = card.className.match(/e-loop-item-(\d+)/);
+            document.querySelectorAll('[class*="post-"]').forEach(function(card) {
+                var m = card.className.match(/post-(\d+)/);
                 if (!m) return;
                 var id = m[1];
                 var data = artedAuthorData[id];
-                if (!data) return;
+                if (!data || !data.name) return;
 
-                // Заполняем существующие элементы Elementor (ACF поля пустые для новых товаров)
-                var nameEl = card.querySelector('.product-author-name');
-                var cityEl = card.querySelector('.product-author-city');
+                // Не добавляем дважды
+                if (card.querySelector('.product-author-name')) return;
 
-                if (nameEl && !nameEl.textContent.trim()) {
-                    if (data.url) {
-                        nameEl.innerHTML = '<a href="' + data.url + '">' + data.name + '</a>';
-                    } else {
-                        nameEl.textContent = data.name;
-                    }
+                var title = card.querySelector('.woocommerce-loop-product__title');
+                if (!title) return;
+
+                var nameEl = document.createElement('div');
+                nameEl.className = 'product-author-name';
+                if (data.url) {
+                    nameEl.innerHTML = '<a href="' + data.url + '">' + data.name + '</a>';
+                } else {
+                    nameEl.textContent = data.name;
                 }
+                title.parentNode.insertBefore(nameEl, title.nextSibling);
 
-                if (cityEl && !cityEl.textContent.trim() && data.city) {
+                if (data.city) {
+                    var cityEl = document.createElement('div');
+                    cityEl.className = 'product-author-city';
                     cityEl.textContent = data.city;
+                    nameEl.parentNode.insertBefore(cityEl, nameEl.nextSibling);
                 }
             });
         }
