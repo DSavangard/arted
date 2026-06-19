@@ -188,7 +188,7 @@ function arted_tab_add_work() {
             'add_title'   => 'Nouvelle œuvre',
             'edit_title'  => "Modifier l'œuvre",
             'name'        => "Titre de l'œuvre",
-            'name_hint'   => 'Comment s\'appelle cette œuvre?',
+            'name_hint'   => "Comment s'appelle cette œuvre?",
             'desc'        => 'Description',
             'desc_hint'   => 'Technique, taille, année, histoire de création...',
             'price'       => 'Prix',
