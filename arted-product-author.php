@@ -93,41 +93,39 @@ add_action('wp_footer', 'arted_product_author_js');
 function arted_product_author_js() {
     ?>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        if (!window.artedAuthorData) return;
+    (function() {
+        function fillAuthors() {
+            if (!window.artedAuthorData) return;
 
-        document.querySelectorAll('[data-product_id], .product[class*="post-"], li.product').forEach(function(card) {
-            var id = card.getAttribute('data-product_id')
-                   || (card.className.match(/post-(\d+)/) || [])[1];
-            if (!id || !artedAuthorData[id]) return;
+            // Elementor Loop Items используют класс e-loop-item-{ID}
+            document.querySelectorAll('[class*="e-loop-item-"]').forEach(function(card) {
+                var m = card.className.match(/e-loop-item-(\d+)/);
+                if (!m) return;
+                var id = m[1];
+                var data = artedAuthorData[id];
+                if (!data) return;
 
-            var data = artedAuthorData[id];
+                // Заполняем существующие элементы Elementor (ACF поля пустые для новых товаров)
+                var nameEl = card.querySelector('.product-author-name');
+                var cityEl = card.querySelector('.product-author-city');
 
-            if (card.querySelector('.arted-product-author')) return;
+                if (nameEl && !nameEl.textContent.trim()) {
+                    if (data.url) {
+                        nameEl.innerHTML = '<a href="' + data.url + '">' + data.name + '</a>';
+                    } else {
+                        nameEl.textContent = data.name;
+                    }
+                }
 
-            var div = document.createElement('div');
-            div.className = 'arted-product-author';
+                if (cityEl && !cityEl.textContent.trim() && data.city) {
+                    cityEl.textContent = data.city;
+                }
+            });
+        }
 
-            var text = data.name;
-            if (data.city) text += ', ' + data.city;
-
-            if (data.url) {
-                var a = document.createElement('a');
-                a.href = data.url;
-                a.textContent = text;
-                div.appendChild(a);
-            } else {
-                div.textContent = text;
-            }
-
-            var title = card.querySelector('.woocommerce-loop-product__title, h2.product_title, h3');
-            if (title) {
-                title.parentNode.insertBefore(div, title.nextSibling);
-            } else {
-                card.appendChild(div);
-            }
-        });
-    });
+        setTimeout(fillAuthors, 300);
+        setTimeout(fillAuthors, 1000);
+    })();
     </script>
     <?php
 }
