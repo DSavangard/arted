@@ -58,8 +58,13 @@ function arted_sync_author_fields($post_id) {
     $name = get_user_meta($author_id, 'arted_artist_name', true) ?: $user->display_name;
     $city = get_user_meta($author_id, 'arted_artist_city', true);
 
-    if ($name) update_post_meta($post_id, 'author_name', $name);
-    if ($city) update_post_meta($post_id, 'author_city', $city);
+    if (function_exists('update_field')) {
+        if ($name) update_field('author_name', $name, $post_id);
+        if ($city) update_field('author_city', $city, $post_id);
+    } else {
+        if ($name) update_post_meta($post_id, 'author_name', $name);
+        if ($city) update_post_meta($post_id, 'author_city', $city);
+    }
 }
 
 // ── Автор в стандартном WC loop (li.product) ─────────────────────────────
