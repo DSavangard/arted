@@ -46,12 +46,20 @@ function arted_product_author_data() {
                 if (!url) return;
                 card.querySelectorAll('.product-author-name').forEach(function(el) {
                     if (el.querySelector('a')) return;
-                    el.innerHTML = '<a href="' + url + '">' + el.textContent + '</a>';
+                    var text = el.textContent.trim();
+                    if (!text) return;
+                    el.innerHTML = '<a href="' + url + '">' + text + '</a>';
                 });
             });
         }
-        setTimeout(linkAuthors, 400);
-        setTimeout(linkAuthors, 1200);
+        linkAuthors();
+        setTimeout(linkAuthors, 500);
+        setTimeout(linkAuthors, 1500);
+        if (window.MutationObserver) {
+            var obs = new MutationObserver(linkAuthors);
+            obs.observe(document.body, { childList: true, subtree: true });
+            setTimeout(function() { obs.disconnect(); }, 8000);
+        }
     })();
     </script>
     <?php
