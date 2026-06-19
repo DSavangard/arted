@@ -31,6 +31,7 @@ function arted_github_snippet_map() {
         'arted-works.php'                 => 3123,
         'arted-product-author.php'        => 3128,
         'arted-author-sync.php'           => 3129,
+        'arted-translate-fields.js'       => 3069,
         'arted-github-sync.php'           => 3122,
     ];
 }
