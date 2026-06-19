@@ -424,3 +424,8 @@ body.dark-theme .arted-ap-contact-form .arted-textarea {
     color: #1a1a1a;
     text-decoration: underline;
 }
+
+.arted-product-author-city {
+    color: #aaa;
+    font-weight: 400;
+}
