@@ -366,7 +366,7 @@ function arted_handle_work_save() {
     }
 
     // Автор и город в ACF полях — чтобы Elementor показывал их как у старых товаров
-    $artist_name = get_user_meta($user_id, 'arted_artist_name', true);
+    $artist_name = get_user_meta($user_id, 'arted_artist_name', true) ?: $user->display_name;
     $artist_city = get_user_meta($user_id, 'arted_artist_city', true);
     // Всегда пишем значение напрямую
     if ($artist_name) update_post_meta($saved_id, 'author_name', $artist_name);
