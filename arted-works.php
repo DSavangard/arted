@@ -345,6 +345,18 @@ function arted_handle_work_save() {
         }
     }
 
+    $artist_name = get_user_meta($user_id, 'arted_artist_name', true) ?: $user->display_name;
+    $artist_city = get_user_meta($user_id, 'arted_artist_city', true);
+
+    // Регистрируем хук ДО wp_update_post/wp_insert_post.
+    // wp_after_insert_post срабатывает внутри wp_insert_post ПОСЛЕ всех save_post хуков (включая ACF).
+    add_action('wp_after_insert_post', function($post_id) use ($artist_name, $artist_city, $user_id) {
+        $post = get_post($post_id);
+        if (!$post || $post->post_type !== 'product' || (int)$post->post_author !== $user_id) return;
+        if ($artist_name) update_post_meta($post_id, 'author_name', $artist_name);
+        if ($artist_city) update_post_meta($post_id, 'author_city', $artist_city);
+    }, 20, 1);
+
     $post_data = [
         'post_title'   => $title,
         'post_content' => $desc,
@@ -365,10 +377,7 @@ function arted_handle_work_save() {
         exit;
     }
 
-    // Автор и город в ACF полях — чтобы Elementor показывал их как у старых товаров
-    $artist_name = get_user_meta($user_id, 'arted_artist_name', true) ?: $user->display_name;
-    $artist_city = get_user_meta($user_id, 'arted_artist_city', true);
-    update_post_meta($saved_id, '_arted_debug', json_encode(['name' => $artist_name, 'city' => $artist_city, 'ts' => time()]));
+    // Дублируем после возврата wp_update_post — на случай старого WP без wp_after_insert_post
     if ($artist_name) update_post_meta($saved_id, 'author_name', $artist_name);
     if ($artist_city) update_post_meta($saved_id, 'author_city', $artist_city);
 

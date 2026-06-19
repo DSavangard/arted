@@ -135,20 +135,15 @@ function arted_product_author_js() {
     (function() {
         function fillAuthors() {
             if (!window.artedAuthorData) return;
-
-            document.querySelectorAll('[class*="post-"]').forEach(function(card) {
-                var m = card.className.match(/post-(\d+)/);
+            document.querySelectorAll('li.product, .e-loop-item').forEach(function(card) {
+                var m = card.className.match(/\bpost-(\d+)\b/);
                 if (!m) return;
                 var id = m[1];
                 var data = artedAuthorData[id];
                 if (!data || !data.name) return;
-
-                // Не добавляем дважды
                 if (card.querySelector('.product-author-name')) return;
-
-                var title = card.querySelector('.woocommerce-loop-product__title');
+                var title = card.querySelector('.woocommerce-loop-product__title, h2');
                 if (!title) return;
-
                 var nameEl = document.createElement('div');
                 nameEl.className = 'product-author-name';
                 if (data.url) {
@@ -156,19 +151,35 @@ function arted_product_author_js() {
                 } else {
                     nameEl.textContent = data.name;
                 }
-                title.parentNode.insertBefore(nameEl, title.nextSibling);
-
+                title.insertAdjacentElement('afterend', nameEl);
                 if (data.city) {
                     var cityEl = document.createElement('div');
                     cityEl.className = 'product-author-city';
                     cityEl.textContent = data.city;
-                    nameEl.parentNode.insertBefore(cityEl, nameEl.nextSibling);
+                    nameEl.insertAdjacentElement('afterend', cityEl);
                 }
             });
         }
 
-        setTimeout(fillAuthors, 300);
-        setTimeout(fillAuthors, 1000);
+        // Запускаем сразу, с задержками и через MutationObserver (для Elementor)
+        setTimeout(fillAuthors, 100);
+        setTimeout(fillAuthors, 500);
+        setTimeout(fillAuthors, 1500);
+        setTimeout(fillAuthors, 4000);
+
+        if (window.MutationObserver) {
+            var obs = new MutationObserver(fillAuthors);
+            obs.observe(document.body, { childList: true, subtree: true });
+            setTimeout(function() { obs.disconnect(); }, 10000);
+        }
+
+        // Elementor frontend hook
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.elementorFrontend) {
+                elementorFrontend.hooks.addAction('frontend/element_ready/global', fillAuthors);
+            }
+            fillAuthors();
+        });
     })();
     </script>
     <?php

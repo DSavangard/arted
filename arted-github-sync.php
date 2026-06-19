@@ -100,34 +100,9 @@ function arted_github_sync_page() {
     $first_post = get_post($first_id);
     $wpcode_type = $first_post ? $first_post->post_type : 'не найден';
 
-    // Debug: показываем мета товара
-    $debug_id = isset($_GET['arted_debug_post']) ? (int)$_GET['arted_debug_post'] : 0;
-
     ?>
     <div class="wrap">
         <h1>GitHub → WPCode Sync</h1>
-
-        <?php if ($debug_id): ?>
-        <div style="background:#f0f0f0;padding:12px;margin-bottom:20px;border:1px solid #ccc;border-radius:4px;font-family:monospace;font-size:12px">
-            <strong>Post meta для #<?= $debug_id ?>:</strong><br>
-            <?php
-            $meta = get_post_meta($debug_id);
-            $keys = ['author_name','author_city','_author_name','_author_city','_arted_debug','_price'];
-            foreach ($keys as $k) {
-                $v = $meta[$k][0] ?? '<em>нет</em>';
-                echo '<div><b>' . esc_html($k) . '</b>: ' . esc_html($v) . '</div>';
-            }
-            $post = get_post($debug_id);
-            echo '<div><b>post_author</b>: ' . ($post ? $post->post_author : '?') . '</div>';
-            if ($post) {
-                $uid = $post->post_author;
-                echo '<div><b>arted_artist_name</b>: ' . esc_html(get_user_meta($uid, 'arted_artist_name', true)) . '</div>';
-                echo '<div><b>display_name</b>: ' . esc_html(get_userdata($uid)->display_name ?? '') . '</div>';
-                echo '<div><b>arted_artist_city</b>: ' . esc_html(get_user_meta($uid, 'arted_artist_city', true)) . '</div>';
-            }
-            ?>
-        </div>
-        <?php endif; ?>
         <p style="color:#666">Репозиторий: <a href="https://github.com/DSavangard/arted" target="_blank">github.com/DSavangard/arted</a> → ветка <code>main</code></p>
         <p style="color:#888;font-size:12px">WPCode post_type: <code><?= esc_html($wpcode_type) ?></code></p>
 
