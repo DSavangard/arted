@@ -1,6 +1,6 @@
 <?php
-// ── Передаём данные автора в JS (работает с Elementor Loop Item) ──────────
-add_action('wp_footer', 'arted_product_author_data');
+// ── [artedAuthorData JS удалён — автор теперь через ACF + Elementor] ──────
+if (false) {
 function arted_product_author_data() {
     if (!is_shop() && !is_product_category() && !is_product_tag() && !is_front_page() && !is_home() && !is_page()) return;
 
@@ -44,6 +44,7 @@ function arted_product_author_data() {
     if (empty($map)) return;
     echo '<script>window.artedAuthorData = ' . json_encode($map) . ';</script>';
 }
+} // end if(false)
 
 // ── Автозапись author_name/author_city из профиля художника ──────────────
 add_action('save_post_product', 'arted_sync_author_fields', 999);
@@ -150,59 +151,3 @@ function arted_product_author_single() {
     echo '</div>';
 }
 
-add_action('wp_footer', 'arted_product_author_js');
-function arted_product_author_js() {
-    ?>
-    <script>
-    (function() {
-        function fillAuthors() {
-            if (!window.artedAuthorData) return;
-            document.querySelectorAll('li.product, .e-loop-item').forEach(function(card) {
-                var m = card.className.match(/\bpost-(\d+)\b/);
-                if (!m) return;
-                var id = m[1];
-                var data = artedAuthorData[id];
-                if (!data || !data.name) return;
-                if (card.querySelector('.product-author-name')) return;
-                var title = card.querySelector('.woocommerce-loop-product__title, h2');
-                if (!title) return;
-                var nameEl = document.createElement('div');
-                nameEl.className = 'product-author-name';
-                if (data.url) {
-                    nameEl.innerHTML = '<a href="' + data.url + '">' + data.name + '</a>';
-                } else {
-                    nameEl.textContent = data.name;
-                }
-                title.insertAdjacentElement('afterend', nameEl);
-                if (data.city) {
-                    var cityEl = document.createElement('div');
-                    cityEl.className = 'product-author-city';
-                    cityEl.textContent = data.city;
-                    nameEl.insertAdjacentElement('afterend', cityEl);
-                }
-            });
-        }
-
-        // Запускаем сразу, с задержками и через MutationObserver (для Elementor)
-        setTimeout(fillAuthors, 100);
-        setTimeout(fillAuthors, 500);
-        setTimeout(fillAuthors, 1500);
-        setTimeout(fillAuthors, 4000);
-
-        if (window.MutationObserver) {
-            var obs = new MutationObserver(fillAuthors);
-            obs.observe(document.body, { childList: true, subtree: true });
-            setTimeout(function() { obs.disconnect(); }, 10000);
-        }
-
-        // Elementor frontend hook
-        document.addEventListener('DOMContentLoaded', function() {
-            if (window.elementorFrontend) {
-                elementorFrontend.hooks.addAction('frontend/element_ready/global', fillAuthors);
-            }
-            fillAuthors();
-        });
-    })();
-    </script>
-    <?php
-}
