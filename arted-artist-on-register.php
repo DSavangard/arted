@@ -12,7 +12,7 @@ function arted_artist_on_register($customer_id, $new_customer_data, $password_ge
     $defaults = [
         'ru' => ['subject' => 'Добро пожаловать в arted.gallery', 'body' => "Привет, {name}!\n\nВы зарегистрированы как художник на arted.gallery.\n\nЗаполните профиль: {url}", 'cta' => 'Перейти в кабинет'],
         'en' => ['subject' => 'Welcome to arted.gallery', 'body' => "Hello, {name}!\n\nYou are registered as an artist on arted.gallery.\n\nFill in your profile: {url}", 'cta' => 'Go to cabinet'],
-        'fr' => ['subject' => 'Bienvenue sur arted.gallery', 'body' => "Bonjour, {name}!\n\nVous êtes inscrit en tant qu'artiste sur arted.gallery.\n\nComplétez votre profil: {url}", 'cta' => 'Accéder à l\'espace'],
+        'fr' => ['subject' => 'Bienvenue sur arted.gallery', 'body' => "Bonjour, {name}!\n\nVous êtes inscrit en tant qu'artiste sur arted.gallery.\n\nComplétez votre profil: {url}", 'cta' => "Accéder à l'espace"],
     ];
 
     $option  = get_option('arted_email_welcome_' . $lang, []);

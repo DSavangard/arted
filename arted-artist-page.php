@@ -103,8 +103,8 @@ function arted_render_artist_page($user) {
         'fr' => [
             'verified'     => 'Artiste vérifié',
             'works'        => 'Œuvres',
-            'no_works'     => 'Aucune œuvre pour l\'instant',
-            'bio'          => 'À propos de l\'artiste',
+            'no_works'     => "Aucune œuvre pour l'instant",
+            'bio'          => "À propos de l'artiste",
             'styles'       => 'Styles',
             'materials'    => 'Matériaux',
             'workshop'     => 'Atelier',
@@ -112,7 +112,7 @@ function arted_render_artist_page($user) {
             'education'    => 'Formation',
             'exhibitions'  => 'Expositions',
             'awards'       => 'Prix',
-            'contact'      => 'Contacter l\'artiste',
+            'contact'      => "Contacter l'artiste",
             'buy'          => 'Acheter',
         ],
     ];
