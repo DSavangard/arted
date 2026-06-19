@@ -543,3 +543,21 @@ body.dark-theme {
 .arted-tab-content {
     padding-top: 8px;
 }
+
+/* ── Автор на карточках товаров ──────────────────────────
+   Elementor рендерит .product-author-name внутри <a> (без ссылки).
+   Мы скрываем их и показываем свой блок СНАРУЖИ <a>. */
+.woocommerce-LoopProduct-link .product-author-name,
+.woocommerce-LoopProduct-link .product-author-city {
+    display: none !important;
+}
+.product-author-block {
+    display: flex;
+    flex-direction: column;
+}
+.product-author-block .product-author-name {
+    display: block;
+}
+.product-author-block a.product-author-name:hover {
+    text-decoration: underline;
+}
