@@ -64,13 +64,16 @@ function arted_github_sync_one($filename, $post_id) {
 
     if (is_wp_error($updated)) return ['ok' => false, 'error' => $updated->get_error_message()];
 
+    // Debug: первые 30 символов
+    $preview = substr($result['body'], 0, 30);
+
     // Сбрасываем кэш WPCode
     wp_cache_delete($post_id, 'posts');
     wp_cache_delete($post_id, 'post_meta');
     global $wpdb;
     $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_wpcode%' OR option_name LIKE '_transient_timeout_wpcode%'");
 
-    return ['ok' => true];
+    return ['ok' => true, 'preview' => $preview];
 }
 
 function arted_github_sync_page() {
@@ -107,7 +110,7 @@ function arted_github_sync_page() {
         <div class="notice notice-<?= count(array_filter($results, fn($r) => !$r['ok'])) ? 'warning' : 'success' ?>" style="padding:10px 15px">
             <?php foreach ($results as $file => $r): ?>
                 <p><?= $r['ok']
-                    ? '✅ <strong>' . esc_html($file) . '</strong> — обновлён'
+                    ? '✅ <strong>' . esc_html($file) . '</strong> — обновлён <code style="color:#666;font-size:11px">' . esc_html($r['preview'] ?? '') . '</code>'
                     : '❌ <strong>' . esc_html($file) . '</strong> — ' . esc_html($r['error']) ?>
                 </p>
             <?php endforeach; ?>
