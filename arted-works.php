@@ -368,16 +368,9 @@ function arted_handle_work_save() {
     // Автор и город в ACF полях — чтобы Elementor показывал их как у старых товаров
     $artist_name = get_user_meta($user_id, 'arted_artist_name', true) ?: $user->display_name;
     $artist_city = get_user_meta($user_id, 'arted_artist_city', true);
-    // Всегда пишем значение напрямую
+    update_post_meta($saved_id, '_arted_debug', json_encode(['name' => $artist_name, 'city' => $artist_city, 'ts' => time()]));
     if ($artist_name) update_post_meta($saved_id, 'author_name', $artist_name);
     if ($artist_city) update_post_meta($saved_id, 'author_city', $artist_city);
-    // Ставим ссылку на ключ поля ACF, чтобы поле отображалось в админке
-    if (function_exists('acf_get_field')) {
-        $f_name = acf_get_field('author_name');
-        if ($f_name) update_post_meta($saved_id, '_author_name', $f_name['key']);
-        $f_city = acf_get_field('author_city');
-        if ($f_city) update_post_meta($saved_id, '_author_city', $f_city['key']);
-    }
 
     // Цена
     update_post_meta($saved_id, '_price', $price);
