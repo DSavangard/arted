@@ -68,8 +68,8 @@ function arted_sync_author_fields($post_id) {
     }
 }
 
-// ── Автор в стандартном WC loop (li.product) ─────────────────────────────
-add_action('woocommerce_after_shop_loop_item_title', 'arted_product_author_loop', 5);
+// ── Автор в стандартном WC loop — отключён, Elementor показывает из ACF ───
+// add_action('woocommerce_after_shop_loop_item_title', 'arted_product_author_loop', 5);
 function arted_product_author_loop() {
     global $product;
     if (!$product) return;
