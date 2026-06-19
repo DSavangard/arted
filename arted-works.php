@@ -365,6 +365,12 @@ function arted_handle_work_save() {
         exit;
     }
 
+    // Автор и город в ACF полях — чтобы Elementor показывал их как у старых товаров
+    $artist_name = get_user_meta($user_id, 'arted_artist_name', true);
+    $artist_city = get_user_meta($user_id, 'arted_artist_city', true);
+    if ($artist_name) update_post_meta($saved_id, 'author_name', $artist_name);
+    if ($artist_city) update_post_meta($saved_id, 'author_city', $artist_city);
+
     // Цена
     update_post_meta($saved_id, '_price', $price);
     update_post_meta($saved_id, '_regular_price', $price);
