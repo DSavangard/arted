@@ -58,7 +58,10 @@ function arted_product_author_data() {
     // Capture phase: перехватываем клик ДО того как <a> его получит.
     // z-index: 10 на .product-author-name гарантирует что e.target = сам элемент.
     document.addEventListener('click', function(e) {
-        var el = e.target.closest('.product-author-name, .product-author-city');
+        // e.target может быть текстовым узлом (nodeType 3) — берём parentElement
+        var target = e.target.nodeType === 3 ? e.target.parentElement : e.target;
+        if (!target) return;
+        var el = target.closest('.product-author-name, .product-author-city');
         if (!el) return;
 
         var li = el.closest('li.product');
