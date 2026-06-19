@@ -1,20 +1,21 @@
 <?php
-// ── Автор с ссылкой на карточках товаров (вне <a> Elementor) ──────────────
+// ── Автор на карточках товаров ────────────────────────────────────────────
 //
-// Elementor Loop Builder рендерит шаблон Loop Item внутри
-// <a class="woocommerce-LoopProduct-link"> (добавляется WC на priority 10
-// хука woocommerce_before_shop_loop_item). Поэтому любой <a> внутри этого
-// враппера браузер игнорирует — вложенные ссылки запрещены в HTML.
+// Elementor Loop Builder рендерит контент внутри <a class="woocommerce-LoopProduct-link">.
+// woocommerce_after_shop_loop_item в Elementor не стреляет.
+// woocommerce_after_shop_loop_item_title стреляет, но мы внутри <a> — нельзя вложить <a>.
 //
 // Решение:
-//   1. CSS скрывает .product-author-name / .product-author-city внутри <a>
-//   2. woocommerce_after_shop_loop_item priority 6 выводит блок автора
-//      ПОСЛЕ закрытия </a> (WC закрывает её на priority 5) — полноценная ссылка.
+//   1. woocommerce_after_shop_loop_item_title → выводим .product-author-block с data-url
+//   2. wp_footer → JS-обработчик на document в фазе ЗАХВАТА (capture=true),
+//      перехватывает клик ДО того как <a> его получит → redirect на страницу художника
+//   3. CSS скрывает Elementor-версию автора через прямой дочерний селектор >
+//      (наша версия вложена в .product-author-block, поэтому не скрывается)
 
-add_action('woocommerce_after_shop_loop_item', 'arted_product_author_loop', 6);
+add_action('woocommerce_after_shop_loop_item_title', 'arted_product_author_loop', 5);
 function arted_product_author_loop() {
     global $product;
-    if (!$product) return;
+    if (!$product || is_product()) return;
 
     $id        = $product->get_id();
     $post_obj  = get_post($id);
@@ -39,16 +40,29 @@ function arted_product_author_loop() {
 
     if (!$name) return;
 
-    echo '<div class="product-author-block">';
-    if ($url) {
-        echo '<a href="' . esc_url($url) . '" class="product-author-name">' . esc_html($name) . '</a>';
-    } else {
-        echo '<span class="product-author-name">' . esc_html($name) . '</span>';
-    }
+    echo '<div class="product-author-block"' . ($url ? ' data-url="' . esc_attr($url) . '"' : '') . '>';
+    echo '<span class="product-author-name">' . esc_html($name) . '</span>';
     if ($city) {
         echo '<span class="product-author-city">' . esc_html($city) . '</span>';
     }
     echo '</div>';
+}
+
+// ── JS: перехват клика в фазе захвата (capture), до <a> ──────────────────
+add_action('wp_footer', 'arted_author_click_capture');
+function arted_author_click_capture() {
+    if (is_admin() || is_product()) return;
+    ?>
+    <script>
+    document.addEventListener('click', function(e) {
+        var block = e.target.closest('.product-author-block[data-url]');
+        if (!block) return;
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.href = block.getAttribute('data-url');
+    }, true); // true = фаза захвата — срабатывает ДО <a>
+    </script>
+    <?php
 }
 
 // ── Автор на странице одного товара ───────────────────────────────────────
