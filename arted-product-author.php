@@ -45,6 +45,23 @@ function arted_product_author_data() {
     echo '<script>window.artedAuthorData = ' . json_encode($map) . ';</script>';
 }
 
+// ── Автозапись author_name/author_city из профиля художника ──────────────
+add_action('save_post_product', 'arted_sync_author_fields', 999);
+function arted_sync_author_fields($post_id) {
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+    $post      = get_post($post_id);
+    if (!$post) return;
+    $author_id = (int)$post->post_author;
+    $user      = get_user_by('id', $author_id);
+    if (!$user || !in_array('artist', (array)$user->roles)) return;
+
+    $name = get_user_meta($author_id, 'arted_artist_name', true) ?: $user->display_name;
+    $city = get_user_meta($author_id, 'arted_artist_city', true);
+
+    if ($name) update_post_meta($post_id, 'author_name', $name);
+    if ($city) update_post_meta($post_id, 'author_city', $city);
+}
+
 // ── Автор в стандартном WC loop (li.product) ─────────────────────────────
 add_action('woocommerce_after_shop_loop_item_title', 'arted_product_author_loop', 5);
 function arted_product_author_loop() {
