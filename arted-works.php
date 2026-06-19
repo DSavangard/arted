@@ -368,8 +368,13 @@ function arted_handle_work_save() {
     // Автор и город в ACF полях — чтобы Elementor показывал их как у старых товаров
     $artist_name = get_user_meta($user_id, 'arted_artist_name', true);
     $artist_city = get_user_meta($user_id, 'arted_artist_city', true);
-    if ($artist_name) update_post_meta($saved_id, 'author_name', $artist_name);
-    if ($artist_city) update_post_meta($saved_id, 'author_city', $artist_city);
+    if (function_exists('update_field')) {
+        if ($artist_name) update_field('author_name', $artist_name, $saved_id);
+        if ($artist_city) update_field('author_city', $artist_city, $saved_id);
+    } else {
+        if ($artist_name) update_post_meta($saved_id, 'author_name', $artist_name);
+        if ($artist_city) update_post_meta($saved_id, 'author_city', $artist_city);
+    }
 
     // Цена
     update_post_meta($saved_id, '_price', $price);
