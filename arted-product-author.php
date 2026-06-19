@@ -63,18 +63,22 @@ function arted_product_author_data() {
         var target = e.target.nodeType === 3 ? e.target.parentElement : e.target;
         if (!target) return;
 
-        var li = target.closest('li.product');
-        if (!li) return;
+        var liProduct  = target.closest('li.product');
+        var divProduct = target.closest('div.product');
+        var anyProduct = liProduct || divProduct;
 
-        var m = li.className.match(/\bpost-(\d+)\b/);
+        console.log('[arted] tag:', target.tagName, '| cls:', (target.className+'').substring(0,60), '| li.product:', !!liProduct, '| div.product:', !!divProduct);
+
+        if (!anyProduct) return;
+
+        var m = anyProduct.className.match(/\bpost-(\d+)\b/);
         if (!m) return;
 
         var url = window.artedAuthorUrls && window.artedAuthorUrls[m[1]];
-
-        var authorEl = li.querySelector('.product-author-name');
+        var authorEl = anyProduct.querySelector('.product-author-name');
         var rect = authorEl ? authorEl.getBoundingClientRect() : null;
 
-        console.log('[arted] li:', m[1], '| url:', url, '| rect:', rect ? rect.top+'..'+rect.bottom : 'no el', '| click Y:', e.clientY, '| match:', rect ? (e.clientY >= rect.top && e.clientY <= rect.bottom) : false);
+        console.log('[arted] id:', m[1], '| url:', url, '| rect:', rect ? rect.top+'..'+rect.bottom : 'no el', '| Y:', e.clientY, '| match:', rect ? (e.clientY >= rect.top && e.clientY <= rect.bottom) : false);
 
         if (!url || !rect || !rect.width || !rect.height) return;
 
