@@ -3,7 +3,7 @@
 
 add_action('admin_menu', function() {
     add_submenu_page(
-        'wpcode-snippet-manager',
+        'wpcode',
         'GitHub Sync',
         '↓ GitHub Sync',
         'manage_options',
