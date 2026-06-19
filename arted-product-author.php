@@ -45,6 +45,45 @@ function arted_product_author_data() {
     echo '<script>window.artedAuthorData = ' . json_encode($map) . ';</script>';
 }
 
+// ── Автор в стандартном WC loop (li.product) ─────────────────────────────
+add_action('woocommerce_after_shop_loop_item_title', 'arted_product_author_loop', 5);
+function arted_product_author_loop() {
+    global $product;
+    if (!$product) return;
+    $id = $product->get_id();
+
+    // Проверяем ACF поля
+    $name = function_exists('get_field') ? get_field('author_name', $id) : '';
+    $city = function_exists('get_field') ? get_field('author_city', $id) : '';
+
+    // Если ACF пустой — берём из post_author (товары из кабинета)
+    if (!$name) {
+        $post      = get_post($id);
+        $author_id = (int) $post->post_author;
+        $user      = get_user_by('id', $author_id);
+        if ($user && in_array('artist', (array) $user->roles)) {
+            $name = get_user_meta($author_id, 'arted_artist_name', true) ?: $user->display_name;
+            $city = get_user_meta($author_id, 'arted_artist_city', true);
+        }
+    }
+
+    if (!$name) return;
+
+    // Ищем пользователя по имени для ссылки
+    $url = '';
+    $users = get_users(['role' => 'artist', 'meta_key' => 'arted_artist_name', 'meta_value' => $name]);
+    if (!empty($users)) {
+        $url = home_url('/artist/' . $users[0]->user_nicename . '/');
+    }
+
+    echo '<div class="product-author-name">';
+    if ($url) echo '<a href="' . esc_url($url) . '">';
+    echo esc_html($name);
+    if ($url) echo '</a>';
+    echo '</div>';
+    if ($city) echo '<div class="product-author-city">' . esc_html($city) . '</div>';
+}
+
 // ── Автор на странице одного товара (WC хук работает на single) ───────────
 add_action('woocommerce_single_product_summary', 'arted_product_author_single', 4);
 function arted_product_author_single() {
