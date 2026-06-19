@@ -167,8 +167,7 @@ function arted_tab_dashboard() {
     echo '</div>';
 }
 
-function arted_tab_works()    { echo '<div class="arted-tab-content"><p>Мои работы — в разработке</p></div>'; }
-function arted_tab_add_work() { echo '<div class="arted-tab-content"><p>Добавить работу — в разработке</p></div>'; }
+// arted_tab_works() и arted_tab_add_work() определены в arted-works.php
 function arted_tab_orders()   { echo '<div class="arted-tab-content"><p>Заказы — в разработке</p></div>'; }
 function arted_tab_payouts()  { echo '<div class="arted-tab-content"><p>Выплаты — в разработке</p></div>'; }
 function arted_tab_messages() { echo '<div class="arted-tab-content"><p>Сообщения — в разработке</p></div>'; }
