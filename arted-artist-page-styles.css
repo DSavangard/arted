@@ -1,0 +1,381 @@
+/* ── Artist public page ──────────────────────────────────────────────────── */
+.arted-artist-page-wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+}
+
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+.arted-ap-hero {
+    padding: 48px 0 40px;
+    border-bottom: 1px solid var(--cab-border, #e5e5e5);
+    margin-bottom: 48px;
+}
+
+.arted-ap-hero-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 36px;
+}
+
+.arted-ap-photo {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #f0f0f0;
+    border: 2px solid #e5e5e5;
+}
+
+.arted-ap-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.arted-ap-photo-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 52px;
+    font-weight: 700;
+    color: #aaa;
+    text-transform: uppercase;
+}
+
+.arted-ap-info {
+    flex: 1;
+    padding-top: 8px;
+}
+
+.arted-ap-name-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.arted-ap-name {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    margin: 0;
+    line-height: 1.1;
+}
+
+.arted-ap-verified {
+    font-size: 12px;
+    font-weight: 600;
+    color: #2d6a2d;
+    background: #f0faf0;
+    border: 1px solid #b3d9b3;
+    border-radius: 20px;
+    padding: 3px 12px;
+    white-space: nowrap;
+}
+
+.arted-ap-city {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 14px;
+    letter-spacing: .02em;
+}
+
+.arted-ap-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.arted-ap-tag-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-right: 4px;
+}
+
+.arted-ap-tag {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    border: 1px solid #e0e0e0;
+    color: #555;
+    background: transparent;
+}
+
+.arted-ap-contact-btn {
+    display: inline-block;
+    text-decoration: none;
+}
+
+/* ── Body sections ───────────────────────────────────────────────────────── */
+.arted-ap-body {
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+}
+
+.arted-ap-section {}
+
+.arted-ap-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #aaa;
+    margin: 0 0 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+/* ── Bio ─────────────────────────────────────────────────────────────────── */
+.arted-ap-bio {
+    font-size: 16px;
+    line-height: 1.7;
+    color: #333;
+    max-width: 700px;
+}
+
+/* ── Video ───────────────────────────────────────────────────────────────── */
+.arted-ap-video {
+    position: relative;
+    padding-bottom: 56.25%;
+    height: 0;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #000;
+    max-width: 800px;
+}
+
+.arted-ap-video iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: none;
+}
+
+/* ── Works grid ──────────────────────────────────────────────────────────── */
+.arted-ap-works {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 24px;
+}
+
+.arted-ap-work {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.arted-ap-work-img {
+    aspect-ratio: 3/4;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f5f5f5;
+    margin-bottom: 12px;
+}
+
+.arted-ap-work-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform .3s ease;
+}
+
+.arted-ap-work:hover .arted-ap-work-img img {
+    transform: scale(1.03);
+}
+
+.arted-ap-work-name {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.arted-ap-work-price {
+    font-size: 14px;
+    color: #FD2E04;
+    font-weight: 700;
+}
+
+.arted-ap-empty {
+    color: #aaa;
+    font-size: 15px;
+}
+
+/* ── Workshop photos ─────────────────────────────────────────────────────── */
+.arted-ap-workshop {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.arted-ap-workshop-img {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f5f5f5;
+}
+
+.arted-ap-workshop-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform .3s ease;
+}
+
+.arted-ap-workshop-img:hover img {
+    transform: scale(1.04);
+}
+
+/* ── Achievements ────────────────────────────────────────────────────────── */
+.arted-ap-achievements {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+}
+
+.arted-ap-achievement-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 8px;
+}
+
+.arted-ap-achievement-text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #333;
+}
+
+/* ── Contact form ────────────────────────────────────────────────────────── */
+.arted-ap-contact-form {
+    max-width: 560px;
+}
+
+.arted-ap-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.arted-ap-contact-form .arted-input,
+.arted-ap-contact-form .arted-textarea {
+    width: 100%;
+    background: #f9f9f9;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #111;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color .2s;
+}
+
+.arted-ap-contact-form .arted-input:focus,
+.arted-ap-contact-form .arted-textarea:focus {
+    outline: none;
+    border-color: #FD2E04;
+}
+
+.arted-ap-contact-form .arted-textarea {
+    resize: vertical;
+    min-height: 120px;
+    margin-bottom: 14px;
+    display: block;
+}
+
+/* ── Preview link in cabinet ─────────────────────────────────────────────── */
+.arted-ap-preview-link {
+    font-size: 12px;
+    color: #888;
+    text-decoration: none;
+    margin-left: 16px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 3px 12px;
+    transition: color .2s, border-color .2s;
+}
+
+.arted-ap-preview-link:hover {
+    color: #FD2E04;
+    border-color: #FD2E04;
+}
+
+/* ── Dark theme overrides ────────────────────────────────────────────────── */
+body.dark-theme .arted-ap-bio,
+body.dark-theme .arted-ap-achievement-text {
+    color: #ccc;
+}
+
+body.dark-theme .arted-ap-photo,
+body.dark-theme .arted-ap-work-img,
+body.dark-theme .arted-ap-workshop-img {
+    background: #1a1a1a;
+}
+
+body.dark-theme .arted-ap-tag {
+    border-color: #333;
+    color: #aaa;
+}
+
+body.dark-theme .arted-ap-section-title,
+body.dark-theme .arted-ap-hero {
+    border-color: #222;
+}
+
+body.dark-theme .arted-ap-contact-form .arted-input,
+body.dark-theme .arted-ap-contact-form .arted-textarea {
+    background: #1a1a1a;
+    border-color: #333;
+    color: #f5f5f5;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .arted-ap-hero-inner {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .arted-ap-name-row {
+        justify-content: center;
+    }
+
+    .arted-ap-tags {
+        justify-content: center;
+    }
+
+    .arted-ap-name {
+        font-size: 24px;
+    }
+
+    .arted-ap-works {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .arted-ap-form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .arted-ap-achievements {
+        grid-template-columns: 1fr;
+    }
+}
