@@ -1,5 +1,4 @@
 <?php
-if (function_exists('arted_handle_profile_save')) return;
 // ── Сохранение формы профиля ──────────────────────────────────────────────
 add_action('init', 'arted_handle_profile_save');
 function arted_handle_profile_save() {

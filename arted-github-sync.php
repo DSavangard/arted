@@ -12,7 +12,6 @@ add_action('admin_menu', function() {
 });
 
 // Карта: файл в GitHub → ID сниппета в WPCode
-if (function_exists('arted_github_snippet_map')) return;
 function arted_github_snippet_map() {
     return [
         'arted-cabinet-nav.php'           => 3105,
