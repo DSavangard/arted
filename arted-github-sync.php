@@ -39,7 +39,10 @@ function arted_github_fetch($filename) {
     if (is_wp_error($response)) return ['ok' => false, 'error' => $response->get_error_message()];
     $code = wp_remote_retrieve_response_code($response);
     if ($code !== 200) return ['ok' => false, 'error' => 'HTTP ' . $code];
-    return ['ok' => true, 'body' => wp_remote_retrieve_body($response)];
+    $body = wp_remote_retrieve_body($response);
+    // Убираем <?php в начале — WPCode добавляет его сам
+    $body = preg_replace('/^\s*<\?php\s*/i', '', $body);
+    return ['ok' => true, 'body' => $body];
 }
 
 function arted_github_sync_one($filename, $post_id) {
