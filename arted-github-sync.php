@@ -74,10 +74,16 @@ function arted_github_sync_page() {
         }
     }
 
+    // Debug: определяем реальный post_type WPCode
+    $first_id   = reset($map);
+    $first_post = get_post($first_id);
+    $wpcode_type = $first_post ? $first_post->post_type : 'не найден';
+
     ?>
     <div class="wrap">
         <h1>GitHub → WPCode Sync</h1>
         <p style="color:#666">Репозиторий: <a href="https://github.com/DSavangard/arted" target="_blank">github.com/DSavangard/arted</a> → ветка <code>main</code></p>
+        <p style="color:#888;font-size:12px">WPCode post_type: <code><?= esc_html($wpcode_type) ?></code></p>
 
         <?php if ($results): ?>
         <div class="notice notice-<?= count(array_filter($results, fn($r) => !$r['ok'])) ? 'warning' : 'success' ?>" style="padding:10px 15px">
@@ -108,7 +114,7 @@ function arted_github_sync_page() {
             <tbody>
             <?php foreach ($map as $file => $id):
                 $post    = get_post($id);
-                $exists  = $post && $post->post_type === 'wpcode_snippet';
+                $exists  = $post && $post->post_type === $wpcode_type;
                 $ext     = pathinfo($file, PATHINFO_EXTENSION);
                 $type_color = $ext === 'php' ? '#2271b1' : '#00a32a';
             ?>
