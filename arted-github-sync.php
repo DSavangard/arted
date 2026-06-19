@@ -30,7 +30,8 @@ function arted_github_snippet_map() {
         'tumbler-registration-style.css'  => 3101,
         'arted-works.php'                 => 3123,
         'arted-product-author.php'        => 3128,
-'arted-github-sync.php'           => 3122,
+        'arted-author-sync.php'           => 3129,
+        'arted-github-sync.php'           => 3122,
     ];
 }
 
