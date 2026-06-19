@@ -2,7 +2,7 @@
 // ── Передаём URL профиля художника в JS — для ссылок на карточках ─────────
 add_action('wp_footer', 'arted_product_author_data');
 function arted_product_author_data() {
-    if (!is_shop() && !is_product_category() && !is_product_tag() && !is_front_page() && !is_home() && !is_page()) return;
+    if (is_admin() || is_product()) return;
 
     $products = get_posts([
         'post_type'      => 'product',
@@ -39,17 +39,18 @@ function arted_product_author_data() {
     (function() {
         function linkAuthors() {
             if (!window.artedAuthorUrls) return;
-            document.querySelectorAll('li.product, .e-loop-item').forEach(function(card) {
+            document.querySelectorAll('.product-author-name:not([data-linked])').forEach(function(el) {
+                var card = el.closest('[class*="post-"]');
+                if (!card) return;
                 var m = card.className.match(/\bpost-(\d+)\b/);
                 if (!m) return;
                 var url = artedAuthorUrls[m[1]];
                 if (!url) return;
-                card.querySelectorAll('.product-author-name').forEach(function(el) {
-                    if (el.querySelector('a')) return;
-                    var text = el.textContent.trim();
-                    if (!text) return;
-                    el.innerHTML = '<a href="' + url + '">' + text + '</a>';
-                });
+                if (el.querySelector('a')) return;
+                var text = el.textContent.trim();
+                if (!text) return;
+                el.setAttribute('data-linked', '1');
+                el.innerHTML = '<a href="' + url + '">' + text + '</a>';
             });
         }
         linkAuthors();
