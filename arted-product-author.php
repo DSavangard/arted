@@ -55,40 +55,56 @@ function arted_product_author_data() {
     <script>
     window.artedAuthorUrls = <?= json_encode($map) ?>;
 
-    // Capture phase: e-con-inner (Elementor) перехватывает все клики на карточке.
-    // e.target всегда e-con-inner, closest() не находит .product-author-name (сестринский элемент).
-    // Решение: проверяем координаты клика через getBoundingClientRect.
-    // CSS display:none убран — элемент видим и имеет реальные размеры.
+    // Подход 1: capture-phase — клик прямо на .product-author-name
     document.addEventListener('click', function(e) {
         var target = e.target.nodeType === 3 ? e.target.parentElement : e.target;
         if (!target) return;
 
-        var liProduct  = target.closest('li.product');
-        var divProduct = target.closest('div.product');
-        var anyProduct = liProduct || divProduct;
+        var authorEl = target.closest('.product-author-name');
+        if (!authorEl) return;
 
-        console.log('[arted] tag:', target.tagName, '| cls:', (target.className+'').substring(0,60), '| li.product:', !!liProduct, '| div.product:', !!divProduct);
+        var li = authorEl.closest('li.product, div.product');
+        if (!li) return;
 
-        if (!anyProduct) return;
-
-        var m = anyProduct.className.match(/\bpost-(\d+)\b/);
+        var m = li.className.match(/\bpost-(\d+)\b/);
         if (!m) return;
 
         var url = window.artedAuthorUrls && window.artedAuthorUrls[m[1]];
-        var authorEl = anyProduct.querySelector('.product-author-name');
-        var rect = authorEl ? authorEl.getBoundingClientRect() : null;
+        if (!url) return;
 
-        console.log('[arted] id:', m[1], '| url:', url, '| rect:', rect ? rect.top+'..'+rect.bottom : 'no el', '| Y:', e.clientY, '| match:', rect ? (e.clientY >= rect.top && e.clientY <= rect.bottom) : false);
-
-        if (!url || !rect || !rect.width || !rect.height) return;
-
-        if (e.clientX >= rect.left && e.clientX <= rect.right &&
-            e.clientY >= rect.top  && e.clientY <= rect.bottom) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            window.location.href = url;
-        }
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        window.location.href = url;
     }, true);
+
+    // Подход 2: при наведении подменяем href у родительского <a> — страховка
+    function artedSetupAuthorHref() {
+        document.querySelectorAll('.product-author-name').forEach(function(el) {
+            if (el.dataset.artedSetup) return;
+            el.dataset.artedSetup = '1';
+
+            var li = el.closest('li.product, div.product');
+            if (!li) return;
+
+            var m = li.className.match(/\bpost-(\d+)\b/);
+            if (!m) return;
+
+            var url = window.artedAuthorUrls && window.artedAuthorUrls[m[1]];
+            if (!url) return;
+
+            var link = li.querySelector('a.woocommerce-LoopProduct-link, a[href]');
+            if (!link) return;
+
+            var orig = link.getAttribute('href');
+            el.addEventListener('mouseenter', function() { link.setAttribute('href', url); });
+            el.addEventListener('mouseleave', function() { link.setAttribute('href', orig); });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', artedSetupAuthorHref);
+    if (typeof jQuery !== 'undefined') {
+        jQuery(document).on('ajaxComplete', function() { setTimeout(artedSetupAuthorHref, 200); });
+    }
     </script>
     <style>
     .product-author-name,
