@@ -29,7 +29,7 @@ function arted_github_snippet_map() {
         'arted-artist-page-styles.css'    => 3121,
         'tumbler-registration-style.css'  => 3101,
         'arted-works.php'                 => 3123,
-        'arted-product-author.php'        => 0,
+        'arted-product-author.php'        => 3128,
         'arted-github-sync.php'           => 3122,
     ];
 }
