@@ -62,9 +62,6 @@ function arted_github_sync_one($filename, $post_id) {
     wp_cache_delete($post_id, 'post_meta');
     global $wpdb;
     $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_wpcode%' OR option_name LIKE '_transient_timeout_wpcode%'");
-    if (function_exists('wpcode') && is_object(wpcode()) && isset(wpcode()->cache)) {
-        wpcode()->cache->clear();
-    }
 
     return ['ok' => true];
 }
