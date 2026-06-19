@@ -2,8 +2,7 @@
 // ── GitHub → WPCode автосинхронизация ────────────────────────────────────
 
 add_action('admin_menu', function() {
-    add_submenu_page(
-        'wpcode',
+    add_management_page(
         'GitHub Sync',
         '↓ GitHub Sync',
         'manage_options',
