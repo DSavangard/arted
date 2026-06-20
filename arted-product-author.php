@@ -119,6 +119,54 @@ function arted_product_author_data() {
     <?php
 }
 
+// ── Кликабельный заголовок автора на странице товара (Elementor heading) ──
+add_action('wp_footer', 'arted_product_author_heading_js');
+function arted_product_author_heading_js() {
+    if (!is_product()) return;
+    global $product;
+    if (!$product) return;
+
+    $id        = $product->get_id();
+    $author_id = (int) get_post_field('post_author', $id);
+    $user      = get_user_by('id', $author_id);
+
+    if ($user && in_array('artist', (array) $user->roles)) {
+        $name = get_user_meta($author_id, 'arted_artist_name', true) ?: $user->display_name;
+        $url  = home_url('/artist/' . $user->user_nicename . '/');
+    } else {
+        $name = get_post_meta($id, 'author_name', true);
+        if (!$name && function_exists('get_field')) $name = get_field('author_name', $id);
+        $url = '';
+        if ($name) {
+            $found = get_users(['role' => 'artist', 'meta_key' => 'arted_artist_name', 'meta_value' => $name, 'number' => 1]);
+            if (!empty($found)) $url = home_url('/artist/' . $found[0]->user_nicename . '/');
+        }
+    }
+
+    if (!$name || !$url) return;
+    ?>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var name = <?= json_encode($name) ?>;
+        var url  = <?= json_encode($url) ?>;
+        document.querySelectorAll('.elementor-heading-title').forEach(function(el) {
+            if (el.textContent.trim() !== name) return;
+            el.style.cursor = 'pointer';
+            el.addEventListener('click', function() { window.location.href = url; });
+            el.addEventListener('mouseenter', function() {
+                el.style.color = '#FD2E04';
+                el.style.textDecoration = 'underline';
+            });
+            el.addEventListener('mouseleave', function() {
+                el.style.color = '';
+                el.style.textDecoration = '';
+            });
+        });
+    });
+    </script>
+    <?php
+}
+
 // ── Автор на странице одного товара ───────────────────────────────────────
 add_action('woocommerce_single_product_summary', 'arted_product_author_single', 4);
 function arted_product_author_single() {
