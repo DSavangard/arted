@@ -73,73 +73,54 @@ function arted_github_fetch($filename) {
 //   UPDATED                        — успешно обновлено (ok=true)
 
 function arted_wpcode_resave($post_id, $code) {
-    // HTTP-сохранение сниппета-триггера #3137 (содержит только "// sync trigger").
-    // Сохранение любого сниппета через WPCode UI пересобирает кэш всех сниппетов.
-    // Простой контент гарантирует что PHP-валидатор WPCode не выдаст ошибок.
-    $trigger_id      = 3137;
-    $trigger_content = '// sync trigger';
-    $edit_url        = admin_url('admin.php?page=wpcode-snippet-manager&snippet_id=' . $trigger_id);
+    $methods    = [];
+    $trigger_id = 3137;
+    global $wpdb;
 
-    $get = wp_remote_get($edit_url, [
-        'cookies'   => $_COOKIE,
-        'timeout'   => 20,
-        'sslverify' => false,
-    ]);
-    if (is_wp_error($get)) {
-        return ['ok' => false, 'methods' => 'GET: ' . $get->get_error_message()];
-    }
+    // Деактивация + активация сниппета-триггера заставляет WPCode пересобрать кэш.
+    // Используем $wpdb напрямую чтобы не трогать post_content через kses.
+    $deactivated = $wpdb->update(
+        $wpdb->posts,
+        ['post_status' => 'draft'],
+        ['ID' => $trigger_id]
+    );
 
-    $html = wp_remote_retrieve_body($get);
-
-    if (!preg_match('/name="([^"]*nonce[^"]*)"\s+value="([^"]+)"/i', $html, $nm)) {
-        return ['ok' => false, 'methods' => 'nonce не найден'];
-    }
-
-    preg_match_all('/<input[^>]+type=["\']hidden["\'][^>]*>/i', $html, $tags);
-    $body = [];
-    foreach ($tags[0] as $tag) {
-        if (preg_match('/name=["\']([^"\']+)["\']/i', $tag, $n) &&
-            preg_match('/value=["\']([^"\']*)["\']/', $tag, $v)) {
-            $body[$n[1]] = html_entity_decode($v[1], ENT_QUOTES);
+    if ($deactivated !== false) {
+        clean_post_cache($trigger_id);
+        $post_draft = get_post($trigger_id);
+        if ($post_draft) {
+            do_action('transition_post_status', 'draft', 'publish', $post_draft);
+            do_action('save_post',        $trigger_id, $post_draft, true);
+            do_action('save_post_wpcode', $trigger_id, $post_draft, true);
         }
-    }
-    $body[$nm[1]] = $nm[2];
 
-    // Контент триггера известен заранее — не нужно скрапить
-    foreach (['wpcode_snippet_code', 'snippet_code', 'code'] as $f) {
-        if (stripos($html, 'name="' . $f . '"') !== false) {
-            $body[$f] = $trigger_content;
-            break;
+        $wpdb->update(
+            $wpdb->posts,
+            ['post_status' => 'publish'],
+            ['ID' => $trigger_id]
+        );
+        clean_post_cache($trigger_id);
+        $post_pub = get_post($trigger_id);
+        if ($post_pub) {
+            do_action('transition_post_status', 'publish', 'draft', $post_pub);
+            do_action('save_post',        $trigger_id, $post_pub, true);
+            do_action('save_post_wpcode', $trigger_id, $post_pub, true);
         }
-    }
-    // Если поле не нашли в hidden inputs — добавляем принудительно
-    if (!isset($body['wpcode_snippet_code'])) {
-        $body['wpcode_snippet_code'] = $trigger_content;
-    }
 
-    preg_match('/<form[^>]+action=["\']([^"\']+)["\']/i', $html, $fa);
-    $action = !empty($fa[1]) ? html_entity_decode($fa[1], ENT_QUOTES) : admin_url('admin.php');
-
-    $post = wp_remote_post($action, [
-        'cookies'     => $_COOKIE,
-        'timeout'     => 30,
-        'sslverify'   => false,
-        'redirection' => 0,
-        'body'        => $body,
-    ]);
-    if (is_wp_error($post)) {
-        return ['ok' => false, 'methods' => 'POST: ' . $post->get_error_message()];
+        $methods[] = 'toggle_#' . $trigger_id;
+    } else {
+        $methods[] = 'toggle_failed';
     }
 
-    $status = wp_remote_retrieve_response_code($post);
-
-    if (function_exists('opcache_reset')) @opcache_reset();
     wp_cache_flush();
+    $methods[] = 'wp_cache_flush';
 
-    return [
-        'ok'      => $status >= 200 && $status < 400,
-        'methods' => "trigger #3137 HTTP {$status} + wp_cache_flush + opcache_reset",
-    ];
+    if (function_exists('opcache_reset')) {
+        @opcache_reset();
+        $methods[] = 'opcache_reset';
+    }
+
+    return ['ok' => $deactivated !== false, 'methods' => implode(', ', $methods)];
 }
 
 function arted_github_sync_one($filename, $post_id) {
