@@ -64,50 +64,71 @@ function arted_github_fetch($filename) {
 //                                    (WPCode перехватывает запись или хранит не в post_content)
 //   UPDATED                        — успешно обновлено (ok=true)
 
-// Перестраивает кэш WPCode без HTTP-запроса.
-// Симулирует $_POST и вызывает save_post_wpcode напрямую — WPCode видит «нажатие Save» и
-// перекомпилирует кэш всех сниппетов из БД (включая тот, что мы только что обновили через $wpdb).
+// Обновляет WPCode file_cache напрямую (минуя HTTP и save-хуки) и сбрасывает OPcache.
+// Логика: WPCode хранит скомпилированный код каждого сниппета в отдельном PHP-файле
+// через wpcode()->file_cache->set/get. При ручном сохранении WPCode перезаписывает этот файл
+// и OPcache видит новый mtime → код обновляется немедленно. Делаем то же самое программно.
 function arted_wpcode_resave($post_id, $code) {
-    $post_obj = get_post($post_id);
-    if (!$post_obj) {
-        return ['ok' => false, 'step' => 'GET_POST', 'error' => 'post #' . $post_id . ' not found'];
+    $methods = [];
+    $ok      = false;
+
+    // 1. Напрямую обновляем WPCode file_cache
+    if (function_exists('wpcode') && is_object(wpcode()) && isset(wpcode()->file_cache)) {
+        $fc = wpcode()->file_cache;
+
+        if (method_exists($fc, 'set')) {
+            $len_before = method_exists($fc, 'get') ? strlen((string) $fc->get($post_id)) : -1;
+            $fc->set($post_id, $code);
+            $len_after  = method_exists($fc, 'get') ? strlen((string) $fc->get($post_id)) : -1;
+            $ok         = true;
+            $methods[]  = "file_cache::set (was={$len_before}b now={$len_after}b)";
+
+            // 2. Находим путь к файлу кэша через Reflection и инвалидируем OPcache точечно
+            try {
+                $ref = new ReflectionClass($fc);
+                foreach ($ref->getProperties() as $prop) {
+                    $prop->setAccessible(true);
+                    $val = $prop->getValue($fc);
+                    if (is_string($val) && is_dir($val) && strpos($val, WP_CONTENT_DIR) !== false) {
+                        // WPCode называет кэш-файл по-разному в зависимости от версии
+                        foreach (['.php', '.js', '.css', '.txt', ''] as $ext) {
+                            $file = rtrim($val, '/') . '/' . $post_id . $ext;
+                            if (file_exists($file)) {
+                                if (function_exists('opcache_invalidate')) {
+                                    opcache_invalidate($file, true);
+                                }
+                                $methods[] = 'opcache_invalidate:' . basename($file);
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            } catch (Exception $e) {
+                $methods[] = 'reflection_err:' . $e->getMessage();
+            }
+        } else {
+            $methods[] = 'file_cache::set not available';
+        }
+    } else {
+        $methods[] = 'wpcode()->file_cache not found';
     }
 
-    // Читаем мета-данные сниппета, чтобы WPCode не сбросил настройки
-    $meta_auto_insert = get_post_meta($post_id, '_wpcode_auto_insert',        true);
-    $meta_location    = get_post_meta($post_id, '_wpcode_location',           true);
-    $meta_number      = get_post_meta($post_id, '_wpcode_auto_insert_number', true);
-    $meta_priority    = get_post_meta($post_id, '_wpcode_priority',           true) ?: '10';
-    $meta_active      = get_post_meta($post_id, '_wpcode_active',             true);
-    $meta_type        = get_post_meta($post_id, '_wpcode_snippet_type',       true) ?: 'php';
+    // 3. Сбрасываем WordPress object cache для поста
+    clean_post_cache($post_id);
+    $methods[] = 'clean_post_cache';
 
-    // Сохраняем исходный $_POST и подставляем поля, которые WPCode ожидает
-    $saved_post = $_POST;
-
-    $_POST['wpcode_snippet_code']          = $code;
-    $_POST['wpcode_snippet_title']         = $post_obj->post_title;
-    $_POST['wpcode_snippet_status']        = $meta_active ? '1' : '0';
-    $_POST['wpcode_snippet_type']          = $meta_type;
-    $_POST['wpcode_auto_insert']           = $meta_auto_insert ?: '0';
-    $_POST['wpcode_auto_insert_location']  = $meta_location ?: '';
-    $_POST['wpcode_auto_insert_number']    = $meta_number ?: '';
-    $_POST['wpcode_priority']              = $meta_priority;
-    // Стандартный WordPress-нонс для редактирования поста
-    $_POST['_wpnonce']                     = wp_create_nonce('update-post_' . $post_id);
-
-    // Запускаем пайплайн WPCode: обработчик save_post_wpcode перекомпилирует кэш
-    do_action('save_post_wpcode', $post_id, $post_obj, true);
-    do_action('save_post',        $post_id, $post_obj, true);
-
-    // Восстанавливаем $_POST
-    $_POST = $saved_post;
-
-    // Сбрасываем OPcache — WPCode мог скомпилировать PHP-файл, который OPcache закэшировал
+    // 4. Глобальный сброс OPcache как запасной вариант
     if (function_exists('opcache_reset')) {
         @opcache_reset();
+        $methods[] = 'opcache_reset';
     }
 
-    return ['ok' => true, 'step' => 'DONE', 'method' => 'post_simulation'];
+    return [
+        'ok'      => $ok,
+        'step'    => 'DONE',
+        'methods' => implode(', ', $methods),
+    ];
 }
 
 function arted_github_sync_one($filename, $post_id) {
@@ -361,7 +382,8 @@ function arted_github_sync_page() {
                         <?php endif; ?>
                         &nbsp;<code style="color:#888;font-size:11px"><?= esc_html($r['preview'] ?? '') ?></code>
                         <?php if (!empty($r['resave'])): $rs = $r['resave']; ?>
-                            · cache: <?= $rs['ok'] ? '✅ rebuilt' : '❌ ' . esc_html(($rs['step'] ?? '') . ': ' . ($rs['error'] ?? '')) ?>
+                            · cache: <?= $rs['ok'] ? '✅' : '⚠' ?>
+                            <span style="color:#888;font-size:11px"><?= esc_html($rs['methods'] ?? '') ?></span>
                         <?php endif; ?>
                     </p>
                 <?php else: ?>
