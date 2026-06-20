@@ -12,6 +12,8 @@ add_action('admin_init', function() {
     add_settings_field('tg_chat_id',         'Chat ID',    'arted_field_tg_chat_id',       'arted-settings', 'arted_main');
     add_settings_section('arted_commission', 'Комиссия',   null, 'arted-settings');
     add_settings_field('commission_rate',    'Комиссия галереи (%)', 'arted_field_commission_rate', 'arted-settings', 'arted_commission');
+    add_settings_section('arted_github',     'GitHub Sync', null, 'arted-settings');
+    add_settings_field('github_token',       'GitHub Token', 'arted_field_github_token', 'arted-settings', 'arted_github');
 });
 
 function arted_field_tg_token() {
@@ -29,6 +31,12 @@ function arted_field_commission_rate() {
     $v = (float)(get_option('arted_settings', [])['commission_rate'] ?? 10);
     echo '<input type="number" name="arted_settings[commission_rate]" value="' . esc_attr($v) . '" class="small-text" min="0" max="100" step="0.1"> %';
     echo '<p class="description">Прибавляется к цене художника. Пример: художник ставит 1 000 ₽ → покупатель платит 1 100 ₽</p>';
+}
+
+function arted_field_github_token() {
+    $v = get_option('arted_settings', [])['github_token'] ?? '';
+    echo '<input type="password" name="arted_settings[github_token]" value="' . esc_attr($v) . '" class="regular-text">';
+    echo '<p class="description">Personal Access Token для GitHub API (лимит без токена: 60 запросов/час)</p>';
 }
 
 function arted_settings_page() {
