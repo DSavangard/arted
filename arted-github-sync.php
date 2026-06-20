@@ -94,109 +94,54 @@ function arted_github_sync_one($filename, $post_id) {
     $old_len = strlen($current);
     $new_len = strlen($new_content);
 
-    $rows = $wpdb->update(
-        $wpdb->posts,
-        [
-            'post_content'      => $new_content,
-            'post_modified'     => current_time('mysql'),
-            'post_modified_gmt' => current_time('mysql', true),
-        ],
-        ['ID' => (int) $post_id],
-        ['%s', '%s', '%s'],
-        ['%d']
-    );
+    // Используем wp_update_post() вместо $wpdb->update() — тогда WPCode
+    // получает нормальный save_post и сам пересобирает свой кэш.
+    // kses_remove_filters() нужен чтобы wp_kses не срезал PHP-код из post_content.
+    kses_remove_filters();
+    $result = wp_update_post([
+        'ID'           => (int) $post_id,
+        'post_content' => $new_content,
+    ], true);
+    kses_init_filters();
 
-    if ($rows === false) {
+    if (is_wp_error($result)) {
         return [
             'ok'    => false,
             'code'  => 'DB_WRITE_FAILED',
-            'error' => 'DB_WRITE_FAILED: ' . ($wpdb->last_error ?: 'unknown error'),
+            'error' => 'DB_WRITE_FAILED: ' . $result->get_error_message(),
         ];
     }
 
-    // Контрольное чтение — проверяем, что в БД действительно то что записали
+    // Контрольное чтение
     $stored = $wpdb->get_var($wpdb->prepare(
         "SELECT post_content FROM {$wpdb->posts} WHERE ID = %d",
         (int) $post_id
     ));
 
     if (rtrim($stored) !== rtrim($new_content)) {
-        $stored_len = strlen($stored ?? '');
         return [
             'ok'    => false,
             'code'  => 'READBACK_MISMATCH',
             'error' => sprintf(
                 'READBACK_MISMATCH: отправлено %d байт, в БД %d байт. Первые 80 символов из БД: «%s»',
                 $new_len,
-                $stored_len,
+                strlen($stored ?? ''),
                 substr($stored ?? '', 0, 80)
             ),
         ];
     }
 
-    // Сброс кэша WP
-    clean_post_cache($post_id);
-    wp_cache_flush();
-
-    // Удаляем WPCode-транзиенты
-    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_wpcode%' OR option_name LIKE '_transient_timeout_wpcode%'");
-
-    // Шаг 1: удаляем старый файловый кэш ДО того как стрелять save_post.
-    // Иначе save_post пересобирает правильный кэш, а мы его потом сносим.
-    $files_deleted = 0;
-    if (function_exists('wpcode') && is_object(wpcode())) {
-        $wpcode_obj = wpcode();
-
-        if (isset($wpcode_obj->cache) && method_exists($wpcode_obj->cache, 'delete_all')) {
-            $wpcode_obj->cache->delete_all();
-        }
-
-        if (isset($wpcode_obj->file_cache)) {
-            $fc = $wpcode_obj->file_cache;
-
-            if (method_exists($fc, 'delete')) {
-                $fc->delete($post_id);
-                $fc->delete((string) $post_id);
-            }
-
-            try {
-                $ref = new ReflectionClass($fc);
-                foreach ($ref->getProperties() as $prop) {
-                    $prop->setAccessible(true);
-                    $val = $prop->getValue($fc);
-                    if (is_string($val) && is_dir($val)) {
-                        foreach (glob(rtrim($val, '/') . '/*') ?: [] as $f) {
-                            if (is_file($f) && @unlink($f)) $files_deleted++;
-                        }
-                    }
-                }
-            } catch (Throwable $e) {}
-        }
-    }
-
-    // Шаг 2: save_post — WPCode читает новый post_content из БД и пишет правильный кэш
-    $updated_post = get_post($post_id);
-    if ($updated_post) {
-        do_action('save_post', $post_id, $updated_post, true);
-        do_action('save_post_' . $updated_post->post_type, $post_id, $updated_post, true);
-        do_action('wpcode_cache_cleared');
-    }
-
-    // Шаг 3: сбрасываем PHP OPcache.
-    // WPCode пишет скомпилированные PHP-файлы на диск — PHP кэширует их байткод
-    // и продолжает выполнять старую версию до истечения TTL (обычно 60-300 сек).
-    // opcache_reset() немедленно инвалидирует весь кэш байткода.
+    // OPcache — на случай если хостинг кэширует байткод WPCode-файлов
     if (function_exists('opcache_reset')) {
         @opcache_reset();
     }
 
     return [
-        'ok'           => true,
-        'code'         => 'UPDATED',
-        'preview'      => substr($new_content, 0, 50),
-        'bytes'        => $new_len,
-        'delta'        => $new_len - $old_len,
-        'cache_purged' => $files_deleted,
+        'ok'      => true,
+        'code'    => 'UPDATED',
+        'preview' => substr($new_content, 0, 50),
+        'bytes'   => $new_len,
+        'delta'   => $new_len - $old_len,
     ];
 }
 
