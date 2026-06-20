@@ -33,6 +33,7 @@ function arted_github_snippet_map() {
         'arted-author-sync.php'           => 3129,
         'arted-translate-fields.js'       => 3069,
         'arted-notifications.php'         => 3138,
+        'arted-gallery-admin.php'         => 3139,
         'arted-github-sync.php'           => 3122,
     ];
 }
