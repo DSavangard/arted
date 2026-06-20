@@ -166,13 +166,15 @@ function arted_github_sync_one($filename, $post_id) {
         return ['ok' => false, 'code' => 'POST_NOT_FOUND', 'error' => 'POST_NOT_FOUND: сниппет #' . $post_id . ' отсутствует в БД'];
     }
 
-    // Контент уже актуален — не нужно обновлять
+    // Контент уже актуален в БД, но кэш WPCode может быть устаревшим — всё равно триггерим resave
     if (rtrim($current) === rtrim($new_content)) {
+        $resave_info = arted_wpcode_resave($post_id, $new_content);
         return [
             'ok'      => true,
             'code'    => 'ALREADY_UP_TO_DATE',
             'preview' => substr($new_content, 0, 50),
             'bytes'   => strlen($new_content),
+            'resave'  => $resave_info,
         ];
     }
 
