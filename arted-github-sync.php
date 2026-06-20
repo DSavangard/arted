@@ -134,17 +134,54 @@ function arted_github_sync_one($filename, $post_id) {
         ];
     }
 
-    // Сбрасываем кэши после успешной верификации
+    // Сброс кэша WP
     clean_post_cache($post_id);
-    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_wpcode%' OR option_name LIKE '_transient_timeout_wpcode%'");
     wp_cache_flush();
 
+    // Удаляем WPCode-транзиенты из options (на случай старых версий)
+    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_wpcode%' OR option_name LIKE '_transient_timeout_wpcode%'");
+
+    // Стреляем save_post чтобы WPCode пересобрал compiled-кэш.
+    // $wpdb->update() обходит хуки — WPCode не узнаёт об изменении без этого.
+    $updated_post = get_post($post_id);
+    if ($updated_post) {
+        do_action('save_post',                         $post_id, $updated_post, true);
+        do_action('save_post_' . $updated_post->post_type, $post_id, $updated_post, true);
+    }
+
+    // Пробуем вызвать WPCode API напрямую (WPCode 2.x)
+    if (function_exists('wpcode') && is_object(wpcode())) {
+        $wpcode = wpcode();
+        if (isset($wpcode->cache) && method_exists($wpcode->cache, 'delete_all')) {
+            $wpcode->cache->delete_all();
+        }
+        if (isset($wpcode->snippets) && method_exists($wpcode->snippets, 'get_snippets')) {
+            // Форсируем перезагрузку списка сниппетов
+            do_action('wpcode_cache_cleared');
+        }
+    }
+
+    // Удаляем файлы кэша с диска (WPCode пишет compiled PHP-файлы)
+    $cache_dirs = [
+        WP_CONTENT_DIR . '/uploads/wpcode-cache/',
+        WP_CONTENT_DIR . '/cache/wpcode/',
+        WP_CONTENT_DIR . '/uploads/wpcode/',
+    ];
+    $files_deleted = 0;
+    foreach ($cache_dirs as $dir) {
+        if (!is_dir($dir)) continue;
+        foreach (glob($dir . '*.php') ?: [] as $f) {
+            if (@unlink($f)) $files_deleted++;
+        }
+    }
+
     return [
-        'ok'      => true,
-        'code'    => 'UPDATED',
-        'preview' => substr($new_content, 0, 50),
-        'bytes'   => $new_len,
-        'delta'   => $new_len - $old_len,
+        'ok'           => true,
+        'code'         => 'UPDATED',
+        'preview'      => substr($new_content, 0, 50),
+        'bytes'        => $new_len,
+        'delta'        => $new_len - $old_len,
+        'cache_purged' => $files_deleted,
     ];
 }
 
@@ -208,6 +245,9 @@ function arted_github_sync_page() {
                             <span style="color:<?= $r['delta'] > 0 ? '#00a32a' : '#d63638' ?>">
                                 (<?= $r['delta'] > 0 ? '+' : '' ?><?= $r['delta'] ?>)
                             </span>
+                        <?php endif; ?>
+                        <?php if (!empty($r['cache_purged'])): ?>
+                            <span style="color:#888;font-size:11px">· кэш: <?= (int)$r['cache_purged'] ?> файл(а) удалено</span>
                         <?php endif; ?>
                         &nbsp;<code style="color:#888;font-size:11px"><?= esc_html($r['preview'] ?? '') ?></code>
                     </p>
