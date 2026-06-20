@@ -316,6 +316,42 @@ function arted_github_sync_page() {
         }
     }
 
+    // Найти реальный WP post ID по WPCode snippet_id (они могут не совпадать в WPCode 2.x)
+    $wpcode_lookup = null;
+    if (isset($_POST['arted_lookup_wpcode']) && check_admin_referer('arted_github_sync')) {
+        $lookup_snippet_id = (int)($_POST['arted_lookup_snippet_id'] ?? 0);
+        if ($lookup_snippet_id) {
+            global $wpdb;
+            // Ищем в postmeta — WPCode может хранить свой ID как meta
+            $by_meta = $wpdb->get_results($wpdb->prepare(
+                "SELECT post_id, meta_value FROM {$wpdb->postmeta}
+                 WHERE meta_key IN ('wpcode_snippet_id','_wpcode_id','snippet_id')
+                   AND meta_value = %s",
+                $lookup_snippet_id
+            ));
+            // Ищем по кастомным таблицам WPCode
+            $wpcode_tables = $wpdb->get_col("SHOW TABLES LIKE '%wpcode%'");
+            $by_table = [];
+            foreach ($wpcode_tables as $tbl) {
+                $cols = $wpdb->get_col("DESCRIBE `{$tbl}`");
+                if (in_array('id', $cols) && in_array('post_id', $cols)) {
+                    $row = $wpdb->get_row($wpdb->prepare(
+                        "SELECT * FROM `{$tbl}` WHERE id = %d LIMIT 1", $lookup_snippet_id
+                    ));
+                    if ($row) $by_table[$tbl] = (array)$row;
+                }
+            }
+            // Последние wpcode-посты для ориентировки
+            $recent = $wpdb->get_results(
+                "SELECT ID, post_title, post_status, post_date
+                 FROM {$wpdb->posts}
+                 WHERE post_type = 'wpcode'
+                 ORDER BY ID DESC LIMIT 10"
+            );
+            $wpcode_lookup = compact('lookup_snippet_id','by_meta','by_table','wpcode_tables','recent');
+        }
+    }
+
     $first_id    = reset($map);
     $first_post  = get_post($first_id);
     $wpcode_type = $first_post ? $first_post->post_type : 'не найден';
@@ -407,6 +443,32 @@ function arted_github_sync_page() {
         </div>
         <?php endif; ?>
 
+        <?php if ($wpcode_lookup): $lk = $wpcode_lookup; ?>
+        <div style="background:#fff8e1;border:1px solid #ffe082;padding:16px;margin-bottom:20px;border-radius:4px">
+            <h3 style="margin:0 0 12px">🔎 WPCode snippet_id → WordPress post ID</h3>
+            <p><b>Искали snippet_id = <?= (int)$lk['lookup_snippet_id'] ?></b></p>
+            <p><b>WPCode-таблицы:</b> <?= implode(', ', $lk['wpcode_tables'] ?: ['нет']) ?></p>
+            <?php if ($lk['by_meta']): ?>
+                <p>По postmeta: <?= esc_html(print_r($lk['by_meta'], true)) ?></p>
+            <?php endif; ?>
+            <?php if ($lk['by_table']): ?>
+                <p>По таблице: <pre><?= esc_html(print_r($lk['by_table'], true)) ?></pre></p>
+            <?php endif; ?>
+            <p><b>Последние 10 WPCode-постов в БД:</b></p>
+            <table style="border-collapse:collapse;font-size:12px">
+                <tr><th style="padding:4px 10px;text-align:left">WP post ID</th><th style="padding:4px 10px;text-align:left">Название</th><th style="padding:4px 10px;text-align:left">Статус</th><th style="padding:4px 10px;text-align:left">Дата</th></tr>
+                <?php foreach ($lk['recent'] as $r): ?>
+                <tr>
+                    <td style="padding:3px 10px"><b><?= $r->ID ?></b></td>
+                    <td style="padding:3px 10px"><?= esc_html($r->post_title) ?></td>
+                    <td style="padding:3px 10px"><?= esc_html($r->post_status) ?></td>
+                    <td style="padding:3px 10px"><?= esc_html($r->post_date) ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </table>
+        </div>
+        <?php endif; ?>
+
         <form method="post" style="margin-bottom:20px;display:flex;gap:8px;align-items:center">
             <?php wp_nonce_field('arted_github_sync'); ?>
             <button name="arted_sync_all" value="1" class="button button-primary button-large">
@@ -415,6 +477,12 @@ function arted_github_sync_page() {
             <button name="arted_rebuild_cache" value="1" class="button button-large">
                 ♻ Сбросить кэш WPCode
             </button>
+        </form>
+
+        <form method="post" style="margin-bottom:20px;display:flex;gap:8px;align-items:center">
+            <?php wp_nonce_field('arted_github_sync'); ?>
+            <input type="number" name="arted_lookup_snippet_id" placeholder="WPCode snippet_id" style="width:160px" class="regular-text">
+            <button name="arted_lookup_wpcode" value="1" class="button">🔎 Найти WP post ID</button>
         </form>
 
         <table class="wp-list-table widefat fixed striped" style="max-width:860px">
