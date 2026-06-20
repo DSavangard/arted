@@ -57,6 +57,41 @@ function arted_notify_new_artwork($new_status, $old_status, $post) {
     );
 }
 
+// ── A2. Уведомление художнику о результате модерации ─────────────────────
+
+add_action('transition_post_status', 'arted_notify_artist_moderation', 10, 3);
+
+function arted_notify_artist_moderation($new_status, $old_status, $post) {
+    if ($post->post_type !== 'product') return;
+    if ($old_status !== 'pending') return;
+    if ($new_status === $old_status) return;
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+
+    $author = get_userdata($post->post_author);
+    if (!$author || !in_array('artist', (array) $author->roles)) return;
+
+    $work_name = $post->post_title ?: 'без названия';
+
+    if ($new_status === 'publish') {
+        $msg     = "✅ Ваша работа «{$work_name}» прошла модерацию и опубликована.";
+        $subject = "Работа опубликована — {$work_name}";
+        $body    = "Здравствуйте, {$author->display_name}!\n\n" .
+                   "Ваша работа «{$work_name}» прошла модерацию и теперь доступна покупателям.\n\n" .
+                   "Вы можете посмотреть её в кабинете художника в разделе «Мои работы».";
+    } elseif (in_array($new_status, ['draft', 'trash', 'private'])) {
+        $msg     = "❌ Ваша работа «{$work_name}» не прошла модерацию. Свяжитесь с галереей для уточнения.";
+        $subject = "Работа не прошла модерацию — {$work_name}";
+        $body    = "Здравствуйте, {$author->display_name}!\n\n" .
+                   "К сожалению, работа «{$work_name}» не прошла модерацию.\n\n" .
+                   "Пожалуйста, свяжитесь с галереей через вкладку «Сообщения» в кабинете художника.";
+    } else {
+        return;
+    }
+
+    arted_artist_add_message($post->post_author, $msg);
+    wp_mail($author->user_email, $subject, $body);
+}
+
 // ── B. Сообщение художнику + Email при новом заказе ──────────────────────
 
 add_action('woocommerce_checkout_order_created', 'arted_notify_artists_new_order');
