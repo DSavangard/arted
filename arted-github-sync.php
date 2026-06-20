@@ -64,70 +64,87 @@ function arted_github_fetch($filename) {
 //                                    (WPCode перехватывает запись или хранит не в post_content)
 //   UPDATED                        — успешно обновлено (ok=true)
 
-// Обновляет WPCode file_cache напрямую (минуя HTTP и save-хуки) и сбрасывает OPcache.
-// Логика: WPCode хранит скомпилированный код каждого сниппета в отдельном PHP-файле
-// через wpcode()->file_cache->set/get. При ручном сохранении WPCode перезаписывает этот файл
-// и OPcache видит новый mtime → код обновляется немедленно. Делаем то же самое программно.
+// Триггерит пересборку кэша WPCode через HTTP-сохранение сниппета-заглушки (3104).
+// Логика: сохранение ЛЮБОГО сниппета пересобирает скомпилированный кэш ВСЕХ сниппетов.
+// Мы уже записали новый код в БД через $wpdb->update(). Теперь заставляем WPCode
+// перекомпилировать кэш — для этого «сохраняем» arted-settings-page (3104) с его же
+// текущим кодом из БД. Никаких UTF-8 строк и сложного синтаксиса — валидация пройдёт.
 function arted_wpcode_resave($post_id, $code) {
-    $methods = [];
-    $ok      = false;
+    global $wpdb;
 
-    // 1. Напрямую обновляем WPCode file_cache
-    if (function_exists('wpcode') && is_object(wpcode()) && isset(wpcode()->file_cache)) {
-        $fc = wpcode()->file_cache;
+    // Сниппет-триггер: простой, без стрелочных функций и кириллицы в коде
+    $trigger_id  = 3104;
+    $edit_url    = admin_url('admin.php?page=wpcode-snippet-manager&snippet_id=' . $trigger_id);
 
-        if (method_exists($fc, 'set')) {
-            $len_before = method_exists($fc, 'get') ? strlen((string) $fc->get($post_id)) : -1;
-            $fc->set($post_id, $code);
-            $len_after  = method_exists($fc, 'get') ? strlen((string) $fc->get($post_id)) : -1;
-            $ok         = true;
-            $methods[]  = "file_cache::set (was={$len_before}b now={$len_after}b)";
+    // 1. GET страницы редактирования триггера — нужен nonce
+    $get = wp_remote_get($edit_url, [
+        'cookies'   => $_COOKIE,
+        'timeout'   => 20,
+        'sslverify' => false,
+    ]);
+    if (is_wp_error($get)) {
+        return ['ok' => false, 'methods' => 'GET failed: ' . $get->get_error_message()];
+    }
 
-            // 2. Находим путь к файлу кэша через Reflection и инвалидируем OPcache точечно
-            try {
-                $ref = new ReflectionClass($fc);
-                foreach ($ref->getProperties() as $prop) {
-                    $prop->setAccessible(true);
-                    $val = $prop->getValue($fc);
-                    if (is_string($val) && is_dir($val) && strpos($val, WP_CONTENT_DIR) !== false) {
-                        // WPCode называет кэш-файл по-разному в зависимости от версии
-                        foreach (['.php', '.js', '.css', '.txt', ''] as $ext) {
-                            $file = rtrim($val, '/') . '/' . $post_id . $ext;
-                            if (file_exists($file)) {
-                                if (function_exists('opcache_invalidate')) {
-                                    opcache_invalidate($file, true);
-                                }
-                                $methods[] = 'opcache_invalidate:' . basename($file);
-                                break;
-                            }
-                        }
-                        break;
-                    }
-                }
-            } catch (Exception $e) {
-                $methods[] = 'reflection_err:' . $e->getMessage();
-            }
-        } else {
-            $methods[] = 'file_cache::set not available';
-        }
+    $html = wp_remote_retrieve_body($get);
+
+    // Ищем nonce
+    if (preg_match('/name="([^"]*nonce[^"]*)"\s+value="([^"]+)"/i', $html, $nm)) {
+        $nonce_field = $nm[1];
+        $nonce_value = $nm[2];
+    } elseif (preg_match('/"nonce"\s*:\s*"([^"]+)"/i', $html, $nm2)) {
+        $nonce_field = '_wpnonce';
+        $nonce_value = $nm2[1];
     } else {
-        $methods[] = 'wpcode()->file_cache not found';
+        return ['ok' => false, 'methods' => 'nonce not found in WPCode edit page'];
     }
 
-    // 3. Сбрасываем WordPress object cache для поста
-    clean_post_cache($post_id);
-    $methods[] = 'clean_post_cache';
-
-    // 4. Глобальный сброс OPcache как запасной вариант
-    if (function_exists('opcache_reset')) {
-        @opcache_reset();
-        $methods[] = 'opcache_reset';
+    // Все hidden inputs
+    preg_match_all('/<input[^>]+type=["\']hidden["\'][^>]*>/i', $html, $inputs_raw);
+    $post_data = [];
+    foreach ($inputs_raw[0] as $tag) {
+        if (preg_match('/name=["\']([^"\']+)["\']/i', $tag, $n) &&
+            preg_match('/value=["\']([^"\']*)["\']/', $tag, $v)) {
+            $post_data[$n[1]] = html_entity_decode($v[1], ENT_QUOTES);
+        }
     }
+    $post_data[$nonce_field] = $nonce_value;
+
+    // 2. Текущий код триггера из БД (не меняем его — только дёргаем сохранение)
+    $trigger_code = (string) $wpdb->get_var($wpdb->prepare(
+        "SELECT post_content FROM {$wpdb->posts} WHERE ID = %d", $trigger_id
+    ));
+    foreach (['wpcode_snippet_code', 'code', 'snippet_code', 'wpcode_code'] as $try) {
+        if (strpos($html, 'name="' . $try . '"') !== false ||
+            strpos($html, "name='" . $try . "'") !== false) {
+            $post_data[$try] = $trigger_code;
+            break;
+        }
+    }
+
+    // Action формы
+    preg_match('/<form[^>]+method=["\']post["\'][^>]*action=["\']([^"\']+)["\']/i', $html, $fa);
+    $action_url = !empty($fa[1]) ? html_entity_decode($fa[1], ENT_QUOTES) : $edit_url;
+
+    // 3. POST — WPCode сохраняет триггер и пересобирает кэш всех сниппетов из БД
+    $post = wp_remote_post($action_url, [
+        'cookies'     => $_COOKIE,
+        'timeout'     => 30,
+        'sslverify'   => false,
+        'redirection' => 0,
+        'body'        => $post_data,
+    ]);
+    if (is_wp_error($post)) {
+        return ['ok' => false, 'methods' => 'POST failed: ' . $post->get_error_message()];
+    }
+
+    $http = wp_remote_retrieve_response_code($post);
+
+    if (function_exists('opcache_reset')) @opcache_reset();
 
     return [
-        'ok'      => $ok,
-        'step'    => 'DONE',
-        'methods' => implode(', ', $methods),
+        'ok'      => ($http >= 200 && $http < 400),
+        'methods' => "trigger save #$trigger_id → HTTP $http, opcache_reset",
     ];
 }
 
