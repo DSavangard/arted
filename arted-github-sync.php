@@ -73,70 +73,72 @@ function arted_github_fetch($filename) {
 //   UPDATED                        — успешно обновлено (ok=true)
 
 function arted_wpcode_resave($post_id, $code) {
-    global $wpdb;
-    $methods = [];
+    // HTTP-сохранение сниппета-триггера #3137 (содержит только "// sync trigger").
+    // Сохранение любого сниппета через WPCode UI пересобирает кэш всех сниппетов.
+    // Простой контент гарантирует что PHP-валидатор WPCode не выдаст ошибок.
+    $trigger_id      = 3137;
+    $trigger_content = '// sync trigger';
+    $edit_url        = admin_url('admin.php?page=wpcode-snippet-manager&snippet_id=' . $trigger_id);
 
-    // 1. Удаляем WPCode transients из wp_options
-    $deleted = (int) $wpdb->query(
-        "DELETE FROM {$wpdb->options}
-         WHERE option_name LIKE '_transient_wpcode%'
-            OR option_name LIKE '_transient_timeout_wpcode%'
-            OR option_name LIKE '_site_transient_wpcode%'
-            OR option_name LIKE '_site_transient_timeout_wpcode%'"
-    );
-    $methods[] = "transients:{$deleted}";
-
-    // 2. Удаляем файлы кэша WPCode по стандартным путям + через Reflection
-    $cache_dirs = [
-        WP_CONTENT_DIR . '/uploads/wpcode-cache/',
-        WP_CONTENT_DIR . '/uploads/wpcode/',
-        WP_CONTENT_DIR . '/cache/wpcode/',
-        WP_CONTENT_DIR . '/wpcode-cache/',
-    ];
-    // Дополнительно ищем через Reflection
-    if (function_exists('wpcode') && is_object(wpcode()) && isset(wpcode()->file_cache)) {
-        try {
-            $ref = new ReflectionClass(wpcode()->file_cache);
-            foreach ($ref->getProperties() as $prop) {
-                $prop->setAccessible(true);
-                $val = $prop->getValue(wpcode()->file_cache);
-                if (is_string($val) && @is_dir($val)) {
-                    $cache_dirs[] = $val;
-                }
-            }
-        } catch (Exception $e) {}
+    $get = wp_remote_get($edit_url, [
+        'cookies'   => $_COOKIE,
+        'timeout'   => 20,
+        'sslverify' => false,
+    ]);
+    if (is_wp_error($get)) {
+        return ['ok' => false, 'methods' => 'GET: ' . $get->get_error_message()];
     }
-    $cache_files_deleted = 0;
-    $cache_dir_found     = '';
-    foreach (array_unique($cache_dirs) as $dir) {
-        if (!is_dir($dir)) continue;
-        $files = array_merge(glob($dir . '*.php') ?: [], glob($dir . '*.json') ?: []);
-        foreach ($files as $f) {
-            @unlink($f);
-            if (function_exists('opcache_invalidate')) opcache_invalidate($f, true);
-            $cache_files_deleted++;
+
+    $html = wp_remote_retrieve_body($get);
+
+    if (!preg_match('/name="([^"]*nonce[^"]*)"\s+value="([^"]+)"/i', $html, $nm)) {
+        return ['ok' => false, 'methods' => 'nonce не найден'];
+    }
+
+    preg_match_all('/<input[^>]+type=["\']hidden["\'][^>]*>/i', $html, $tags);
+    $body = [];
+    foreach ($tags[0] as $tag) {
+        if (preg_match('/name=["\']([^"\']+)["\']/i', $tag, $n) &&
+            preg_match('/value=["\']([^"\']*)["\']/', $tag, $v)) {
+            $body[$n[1]] = html_entity_decode($v[1], ENT_QUOTES);
         }
-        if (!$cache_dir_found && $cache_files_deleted) $cache_dir_found = $dir;
     }
-    $methods[] = 'cache_files:' . $cache_files_deleted . ($cache_dir_found ? '(' . basename(rtrim($cache_dir_found, '/')) . ')' : '(dir_not_found)');
+    $body[$nm[1]] = $nm[2];
 
-    // 3. WordPress object cache (включая Redis/Memcached)
-    clean_post_cache($post_id);
+    // Контент триггера известен заранее — не нужно скрапить
+    foreach (['wpcode_snippet_code', 'snippet_code', 'code'] as $f) {
+        if (stripos($html, 'name="' . $f . '"') !== false) {
+            $body[$f] = $trigger_content;
+            break;
+        }
+    }
+    // Если поле не нашли в hidden inputs — добавляем принудительно
+    if (!isset($body['wpcode_snippet_code'])) {
+        $body['wpcode_snippet_code'] = $trigger_content;
+    }
+
+    preg_match('/<form[^>]+action=["\']([^"\']+)["\']/i', $html, $fa);
+    $action = !empty($fa[1]) ? html_entity_decode($fa[1], ENT_QUOTES) : admin_url('admin.php');
+
+    $post = wp_remote_post($action, [
+        'cookies'     => $_COOKIE,
+        'timeout'     => 30,
+        'sslverify'   => false,
+        'redirection' => 0,
+        'body'        => $body,
+    ]);
+    if (is_wp_error($post)) {
+        return ['ok' => false, 'methods' => 'POST: ' . $post->get_error_message()];
+    }
+
+    $status = wp_remote_retrieve_response_code($post);
+
+    if (function_exists('opcache_reset')) @opcache_reset();
     wp_cache_flush();
-    $methods[] = 'wp_cache_flush';
-
-    // 4. OPcache
-    if (function_exists('opcache_reset')) {
-        @opcache_reset();
-        $methods[] = 'opcache_reset';
-    }
-
-    // 5. LiteSpeed Cache
-    do_action('litespeed_purge_all');
 
     return [
-        'ok'      => true,
-        'methods' => implode(', ', $methods),
+        'ok'      => $status >= 200 && $status < 400,
+        'methods' => "trigger #3137 HTTP {$status} + wp_cache_flush + opcache_reset",
     ];
 }
 
