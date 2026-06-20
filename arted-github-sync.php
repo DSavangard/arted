@@ -63,89 +63,51 @@ function arted_github_fetch($filename) {
 //   READBACK_MISMATCH              — записали, но при контрольном чтении БД вернула другой контент
 //                                    (WPCode перехватывает запись или хранит не в post_content)
 //   UPDATED                        — успешно обновлено (ok=true)
-// Симулирует нажатие Save в WPCode UI через внутренний HTTP-запрос.
-// Возвращает массив с деталями для отладки.
+
+// Перестраивает кэш WPCode без HTTP-запроса.
+// Симулирует $_POST и вызывает save_post_wpcode напрямую — WPCode видит «нажатие Save» и
+// перекомпилирует кэш всех сниппетов из БД (включая тот, что мы только что обновили через $wpdb).
 function arted_wpcode_resave($post_id, $code) {
-    $edit_url = admin_url('admin.php?page=wpcode-snippet-manager&snippet_id=' . (int) $post_id);
-
-    // GET страницы редактирования — нужен nonce и форма
-    $get = wp_remote_get($edit_url, [
-        'cookies'   => $_COOKIE,
-        'timeout'   => 20,
-        'sslverify' => false,
-    ]);
-
-    if (is_wp_error($get)) {
-        return ['ok' => false, 'step' => 'GET', 'error' => $get->get_error_message()];
+    $post_obj = get_post($post_id);
+    if (!$post_obj) {
+        return ['ok' => false, 'step' => 'GET_POST', 'error' => 'post #' . $post_id . ' not found'];
     }
 
-    $html = wp_remote_retrieve_body($get);
+    // Читаем мета-данные сниппета, чтобы WPCode не сбросил настройки
+    $meta_auto_insert = get_post_meta($post_id, '_wpcode_auto_insert',        true);
+    $meta_location    = get_post_meta($post_id, '_wpcode_location',           true);
+    $meta_number      = get_post_meta($post_id, '_wpcode_auto_insert_number', true);
+    $meta_priority    = get_post_meta($post_id, '_wpcode_priority',           true) ?: '10';
+    $meta_active      = get_post_meta($post_id, '_wpcode_active',             true);
+    $meta_type        = get_post_meta($post_id, '_wpcode_snippet_type',       true) ?: 'php';
 
-    // Ищем nonce (WPCode обычно называет его wpcode_nonce или _wpnonce)
-    if (!preg_match('/name="([^"]*nonce[^"]*)"\s+value="([^"]+)"/i', $html, $nm)) {
-        if (!preg_match('/"nonce"\s*:\s*"([^"]+)"/i', $html, $nm2)) {
-            return ['ok' => false, 'step' => 'NONCE', 'error' => 'nonce not found in WPCode edit page'];
-        }
-        $nonce_field = '_wpnonce';
-        $nonce_value = $nm2[1];
-    } else {
-        $nonce_field = $nm[1];
-        $nonce_value = $nm[2];
+    // Сохраняем исходный $_POST и подставляем поля, которые WPCode ожидает
+    $saved_post = $_POST;
+
+    $_POST['wpcode_snippet_code']          = $code;
+    $_POST['wpcode_snippet_title']         = $post_obj->post_title;
+    $_POST['wpcode_snippet_status']        = $meta_active ? '1' : '0';
+    $_POST['wpcode_snippet_type']          = $meta_type;
+    $_POST['wpcode_auto_insert']           = $meta_auto_insert ?: '0';
+    $_POST['wpcode_auto_insert_location']  = $meta_location ?: '';
+    $_POST['wpcode_auto_insert_number']    = $meta_number ?: '';
+    $_POST['wpcode_priority']              = $meta_priority;
+    // Стандартный WordPress-нонс для редактирования поста
+    $_POST['_wpnonce']                     = wp_create_nonce('update-post_' . $post_id);
+
+    // Запускаем пайплайн WPCode: обработчик save_post_wpcode перекомпилирует кэш
+    do_action('save_post_wpcode', $post_id, $post_obj, true);
+    do_action('save_post',        $post_id, $post_obj, true);
+
+    // Восстанавливаем $_POST
+    $_POST = $saved_post;
+
+    // Сбрасываем OPcache — WPCode мог скомпилировать PHP-файл, который OPcache закэшировал
+    if (function_exists('opcache_reset')) {
+        @opcache_reset();
     }
 
-    // Собираем все hidden inputs формы
-    preg_match_all('/<input[^>]+type=["\']hidden["\'][^>]*>/i', $html, $inputs_raw);
-    $post_data = [];
-    foreach ($inputs_raw[0] as $tag) {
-        if (preg_match('/name=["\']([^"\']+)["\']/i', $tag, $n) &&
-            preg_match('/value=["\']([^"\']*)["\']/', $tag, $v)) {
-            $post_data[$n[1]] = html_entity_decode($v[1], ENT_QUOTES);
-        }
-    }
-
-    // Ищем поле кода — WPCode может использовать textarea
-    $code_field = null;
-    if (preg_match('/<textarea[^>]+name=["\']([^"\']+)["\'][^>]*>/i', $html, $tf)) {
-        $code_field = $tf[1];
-    }
-    // Типичные названия поля кода в WPCode
-    foreach (['wpcode_snippet_code', 'code', 'snippet_code', 'wpcode_code'] as $try) {
-        if (strpos($html, 'name="' . $try . '"') !== false || strpos($html, "name='" . $try . "'") !== false) {
-            $code_field = $try;
-            break;
-        }
-    }
-
-    if ($code_field) {
-        $post_data[$code_field] = $code;
-    }
-
-    $post_data[$nonce_field] = $nonce_value;
-
-    // Находим action формы
-    preg_match('/<form[^>]+method=["\']post["\'][^>]*action=["\']([^"\']+)["\']/i', $html, $fa);
-    $action_url = !empty($fa[1]) ? html_entity_decode($fa[1], ENT_QUOTES) : $edit_url;
-
-    // POST
-    $post = wp_remote_post($action_url, [
-        'cookies'     => $_COOKIE,
-        'timeout'     => 30,
-        'sslverify'   => false,
-        'redirection' => 0,
-        'body'        => $post_data,
-    ]);
-
-    if (is_wp_error($post)) {
-        return ['ok' => false, 'step' => 'POST', 'error' => $post->get_error_message()];
-    }
-
-    return [
-        'ok'          => true,
-        'http_status' => wp_remote_retrieve_response_code($post),
-        'nonce_field' => $nonce_field,
-        'code_field'  => $code_field,
-        'fields_sent' => array_keys($post_data),
-    ];
+    return ['ok' => true, 'step' => 'DONE', 'method' => 'post_simulation'];
 }
 
 function arted_github_sync_one($filename, $post_id) {
@@ -399,12 +361,7 @@ function arted_github_sync_page() {
                         <?php endif; ?>
                         &nbsp;<code style="color:#888;font-size:11px"><?= esc_html($r['preview'] ?? '') ?></code>
                         <?php if (!empty($r['resave'])): $rs = $r['resave']; ?>
-                            · resave: <?= $rs['ok'] ? '✅ HTTP ' . (int)$rs['http_status'] : '❌ ' . esc_html($rs['step'] . ': ' . ($rs['error'] ?? '')) ?>
-                            <?php if ($rs['ok'] && !empty($rs['code_field'])): ?>
-                                <span style="color:#888;font-size:11px">(code→<?= esc_html($rs['code_field']) ?>)</span>
-                            <?php elseif ($rs['ok']): ?>
-                                <span style="color:#d63638;font-size:11px">⚠ code field not found</span>
-                            <?php endif; ?>
+                            · cache: <?= $rs['ok'] ? '✅ rebuilt' : '❌ ' . esc_html(($rs['step'] ?? '') . ': ' . ($rs['error'] ?? '')) ?>
                         <?php endif; ?>
                     </p>
                 <?php else: ?>
