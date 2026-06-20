@@ -204,9 +204,30 @@ function arted_inspect_snippet($post_id) {
     // Кастомные таблицы WPCode
     $tables = $wpdb->get_col("SHOW TABLES LIKE '%wpcode%'");
     $out['wpcode_tables'] = $tables;
-    foreach ($tables as $table) {
-        $cols = $wpdb->get_col("DESCRIBE `{$table}`");
-        $out['table_' . $table] = $cols;
+
+    // Все обработчики save_post_wpcode — видим что именно WPCode вызывает при сохранении
+    $out['save_post_wpcode_hooks'] = [];
+    if (!empty($GLOBALS['wp_filter']['save_post_wpcode'])) {
+        foreach ($GLOBALS['wp_filter']['save_post_wpcode'] as $priority => $callbacks) {
+            foreach ($callbacks as $cb) {
+                $fn = $cb['function'];
+                if (is_array($fn)) {
+                    $label = (is_object($fn[0]) ? get_class($fn[0]) : $fn[0]) . '::' . $fn[1];
+                } elseif (is_string($fn)) {
+                    $label = $fn;
+                } else {
+                    $label = 'Closure';
+                }
+                $out['save_post_wpcode_hooks'][$priority][] = $label;
+            }
+        }
+    }
+
+    // Что file_cache хранит для этого сниппета прямо сейчас
+    if (function_exists('wpcode') && is_object(wpcode()) && isset(wpcode()->file_cache)) {
+        $fc  = wpcode()->file_cache;
+        $out['file_cache_get_result'] = method_exists($fc, 'get') ? $fc->get($post_id) : 'no get() method';
+        $out['file_cache_get_string'] = method_exists($fc, 'get') ? $fc->get((string)$post_id) : 'no get() method';
     }
 
     return $out;
