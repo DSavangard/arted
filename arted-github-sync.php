@@ -159,24 +159,29 @@ function arted_github_sync_one($filename, $post_id) {
             $wpcode->cache->delete_all();
         }
 
-        // WPCode_File_Cache — именно он отвечает за скомпилированные файлы
+        // WPCode_File_Cache: методы set/get/delete — нет delete_all.
+        // Удаляем конкретный файл по ключу + ищем директорию через Reflection.
         if (isset($wpcode->file_cache)) {
             $fc = $wpcode->file_cache;
-            foreach (['delete_all', 'clear', 'flush', 'purge', 'clear_cache'] as $m) {
-                if (method_exists($fc, $m)) {
-                    $fc->$m();
-                    break;
-                }
+
+            if (method_exists($fc, 'delete')) {
+                $fc->delete($post_id);
+                $fc->delete((string) $post_id);
             }
-            // Если API не дал метода — ищем директорию через рефлексию
-            if (method_exists($fc, 'get_cache_dir')) {
-                $dir = $fc->get_cache_dir();
-                if ($dir && is_dir($dir)) {
-                    foreach (glob($dir . '*') ?: [] as $f) {
-                        if (is_file($f) && @unlink($f)) $files_deleted++;
+
+            // Ищем все string-свойства, которые указывают на существующую директорию
+            try {
+                $ref = new ReflectionClass($fc);
+                foreach ($ref->getProperties() as $prop) {
+                    $prop->setAccessible(true);
+                    $val = $prop->getValue($fc);
+                    if (is_string($val) && is_dir($val)) {
+                        foreach (glob(rtrim($val, '/') . '/*') ?: [] as $f) {
+                            if (is_file($f) && @unlink($f)) $files_deleted++;
+                        }
                     }
                 }
-            }
+            } catch (Throwable $e) {}
         }
 
         do_action('wpcode_cache_cleared');
