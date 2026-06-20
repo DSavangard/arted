@@ -572,3 +572,50 @@ body.dark-theme {
     color: #FD2E04;
 }
 
+/* ── Таблица заказов ──────────────────────────────────── */
+.arted-orders-table-wrap {
+    overflow-x: auto;
+    margin-top: 16px;
+}
+
+.arted-orders-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.arted-orders-table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--cab-muted);
+    border-bottom: 1px solid var(--cab-border);
+    white-space: nowrap;
+}
+
+.arted-orders-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--cab-border);
+    vertical-align: middle;
+}
+
+.arted-orders-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.arted-orders-date { color: var(--cab-muted); white-space: nowrap; }
+.arted-orders-num  { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+.arted-orders-work { font-weight: 500; }
+.arted-orders-price { white-space: nowrap; font-weight: 600; }
+
+/* Hint под полем цены в форме добавления работы */
+.arted-buyer-price-hint {
+    margin-top: 6px;
+    color: var(--cab-accent);
+    font-size: 13px;
+    font-weight: 500;
+}
+

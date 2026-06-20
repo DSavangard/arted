@@ -168,7 +168,158 @@ function arted_tab_dashboard() {
 }
 
 // arted_tab_works() и arted_tab_add_work() определены в arted-works.php
-function arted_tab_orders()   { echo '<div class="arted-tab-content"><p>Заказы — в разработке</p></div>'; }
+function arted_tab_orders() {
+    $user_id = get_current_user_id();
+    $lang    = function_exists('arted_get_lang') ? arted_get_lang() : 'ru';
+
+    $t = [
+        'ru' => [
+            'title'      => 'Заказы',
+            'empty'      => 'Заказов пока нет',
+            'col_date'   => 'Дата',
+            'col_order'  => '№ заказа',
+            'col_work'   => 'Работа',
+            'col_price'  => 'Ваша цена',
+            'col_status' => 'Статус',
+            'statuses'   => [
+                'pending'    => 'Ожидает оплаты',
+                'on-hold'    => 'На удержании',
+                'processing' => 'Оплачен',
+                'completed'  => 'Выполнен',
+                'cancelled'  => 'Отменён',
+                'refunded'   => 'Возврат',
+                'failed'     => 'Ошибка оплаты',
+            ],
+        ],
+        'en' => [
+            'title'      => 'Orders',
+            'empty'      => 'No orders yet',
+            'col_date'   => 'Date',
+            'col_order'  => 'Order',
+            'col_work'   => 'Work',
+            'col_price'  => 'Your price',
+            'col_status' => 'Status',
+            'statuses'   => [
+                'pending'    => 'Awaiting payment',
+                'on-hold'    => 'On hold',
+                'processing' => 'Paid',
+                'completed'  => 'Completed',
+                'cancelled'  => 'Cancelled',
+                'refunded'   => 'Refunded',
+                'failed'     => 'Payment failed',
+            ],
+        ],
+        'fr' => [
+            'title'      => 'Commandes',
+            'empty'      => "Aucune commande pour l'instant",
+            'col_date'   => 'Date',
+            'col_order'  => 'Commande',
+            'col_work'   => 'Œuvre',
+            'col_price'  => 'Votre prix',
+            'col_status' => 'Statut',
+            'statuses'   => [
+                'pending'    => 'En attente de paiement',
+                'on-hold'    => 'En attente',
+                'processing' => 'Payée',
+                'completed'  => 'Terminée',
+                'cancelled'  => 'Annulée',
+                'refunded'   => 'Remboursée',
+                'failed'     => 'Échec du paiement',
+            ],
+        ],
+    ];
+    $l = $t[$lang] ?? $t['ru'];
+
+    $status_cls = [
+        'pending'    => 'pending',
+        'on-hold'    => 'pending',
+        'processing' => 'published',
+        'completed'  => 'published',
+        'cancelled'  => 'draft',
+        'refunded'   => 'draft',
+        'failed'     => 'draft',
+    ];
+
+    // ID всех продуктов художника
+    $product_ids = get_posts([
+        'post_type'      => 'product',
+        'author'         => $user_id,
+        'post_status'    => ['publish', 'pending', 'draft'],
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+    ]);
+
+    echo '<div class="arted-tab-content">';
+    echo '<h2 class="arted-works-title">' . esc_html($l['title']) . '</h2>';
+
+    if (empty($product_ids)) {
+        echo '<div class="arted-works-empty"><p>' . esc_html($l['empty']) . '</p></div></div>';
+        return;
+    }
+
+    global $wpdb;
+    $ids_in = implode(',', array_map('intval', $product_ids));
+
+    // Строки заказов, содержащих работы этого художника
+    $rows = $wpdb->get_results("
+        SELECT
+            oi.order_id,
+            oim_prod.meta_value  AS product_id,
+            p.post_date          AS order_date,
+            p.post_status        AS order_status
+        FROM {$wpdb->prefix}woocommerce_order_items oi
+        JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim_prod
+            ON oim_prod.order_item_id = oi.order_item_id AND oim_prod.meta_key = '_product_id'
+        JOIN {$wpdb->posts} p ON p.ID = oi.order_id
+        WHERE oi.order_type = 'line_item'
+          AND oim_prod.meta_value IN ({$ids_in})
+          AND p.post_type IN ('shop_order', 'wc_order')
+        ORDER BY p.post_date DESC
+        LIMIT 200
+    ");
+
+    if (empty($rows)) {
+        echo '<div class="arted-works-empty"><p>' . esc_html($l['empty']) . '</p></div></div>';
+        return;
+    }
+
+    echo '<div class="arted-orders-table-wrap">';
+    echo '<table class="arted-orders-table">';
+    echo '<thead><tr>';
+    echo '<th>' . esc_html($l['col_date'])   . '</th>';
+    echo '<th>' . esc_html($l['col_order'])  . '</th>';
+    echo '<th>' . esc_html($l['col_work'])   . '</th>';
+    echo '<th>' . esc_html($l['col_price'])  . '</th>';
+    echo '<th>' . esc_html($l['col_status']) . '</th>';
+    echo '</tr></thead><tbody>';
+
+    foreach ($rows as $row) {
+        $product_id   = (int) $row->product_id;
+        $product      = wc_get_product($product_id);
+        $work_name    = $product ? $product->get_name() : '#' . $product_id;
+        $artist_price = get_post_meta($product_id, 'arted_artist_price', true);
+        if ($artist_price === '') {
+            $artist_price = $product ? (float) $product->get_price() : 0;
+        }
+
+        $wc_status    = str_replace('wc-', '', $row->order_status);
+        $status_label = $l['statuses'][$wc_status] ?? $wc_status;
+        $status_color = $status_cls[$wc_status] ?? 'draft';
+        $date         = date_i18n('d.m.Y', strtotime($row->order_date));
+
+        echo '<tr>';
+        echo '<td class="arted-orders-date">' . esc_html($date) . '</td>';
+        echo '<td class="arted-orders-num">#' . (int) $row->order_id . '</td>';
+        echo '<td class="arted-orders-work">' . esc_html($work_name) . '</td>';
+        echo '<td class="arted-orders-price">' . ($artist_price ? number_format((float)$artist_price, 0, '.', ' ') . ' ₽' : '—') . '</td>';
+        echo '<td><span class="arted-work-card-status ' . esc_attr($status_color) . '">' . esc_html($status_label) . '</span></td>';
+        echo '</tr>';
+    }
+
+    echo '</tbody></table></div>';
+    echo '</div>';
+}
+
 function arted_tab_payouts()  { echo '<div class="arted-tab-content"><p>Выплаты — в разработке</p></div>'; }
 function arted_tab_messages() { echo '<div class="arted-tab-content"><p>Сообщения — в разработке</p></div>'; }
 
