@@ -64,47 +64,72 @@ function arted_github_fetch($filename) {
 //                                    (WPCode перехватывает запись или хранит не в post_content)
 //   UPDATED                        — успешно обновлено (ok=true)
 
-// Сбрасывает все кэши WPCode. $wpdb->update() пишет в wp_posts, но WPCode
-// хранит скомпилированный список сниппетов в transients (wp_options) и object cache —
-// именно они не дают изменениям появиться без ручного сохранения через UI.
+// Симулирует нажатие Save Changes в WPCode UI для сниппета 3104 (arted-settings-page).
+// Сохранение любого сниппета заставляет WPCode перекомпилировать кэш всех сниппетов.
+// Код 3104 берём прямо из БД — ничего не меняем, просто триггерим сохранение.
 function arted_wpcode_resave($post_id, $code) {
     global $wpdb;
-    $methods = [];
 
-    // 1. Удаляем все WPCode-transients из wp_options
-    $deleted = (int) $wpdb->query(
-        "DELETE FROM {$wpdb->options}
-         WHERE option_name LIKE '_transient_wpcode%'
-            OR option_name LIKE '_transient_timeout_wpcode%'
-            OR option_name LIKE '_site_transient_wpcode%'
-            OR option_name LIKE '_site_transient_timeout_wpcode%'"
-    );
-    $methods[] = "transients_deleted:{$deleted}";
+    $trigger_id = 3104;
+    $edit_url   = admin_url('admin.php?page=wpcode-snippet-manager&snippet_id=' . $trigger_id);
 
-    // 2. file_cache->delete (на случай если WPCode кэширует отдельные сниппеты)
-    if (function_exists('wpcode') && is_object(wpcode()) && isset(wpcode()->file_cache)) {
-        $fc = wpcode()->file_cache;
-        if (method_exists($fc, 'delete')) {
-            $fc->delete($post_id);
-            $methods[] = 'file_cache::delete';
+    $get = wp_remote_get($edit_url, [
+        'cookies'   => $_COOKIE,
+        'timeout'   => 20,
+        'sslverify' => false,
+    ]);
+    if (is_wp_error($get)) {
+        return ['ok' => false, 'methods' => 'GET: ' . $get->get_error_message()];
+    }
+
+    $html = wp_remote_retrieve_body($get);
+
+    // Nonce
+    if (!preg_match('/name="([^"]*nonce[^"]*)"\s+value="([^"]+)"/i', $html, $nm)) {
+        return ['ok' => false, 'methods' => 'nonce не найден'];
+    }
+
+    // Все hidden inputs формы
+    preg_match_all('/<input[^>]+type=["\']hidden["\'][^>]*>/i', $html, $tags);
+    $body = [];
+    foreach ($tags[0] as $tag) {
+        if (preg_match('/name=["\']([^"\']+)["\']/i', $tag, $n) &&
+            preg_match('/value=["\']([^"\']*)["\']/', $tag, $v)) {
+            $body[$n[1]] = html_entity_decode($v[1], ENT_QUOTES);
+        }
+    }
+    $body[$nm[1]] = $nm[2];
+
+    // Код берём из БД — точно такой же как уже сохранён, никаких изменений
+    $trigger_code = (string) $wpdb->get_var($wpdb->prepare(
+        "SELECT post_content FROM {$wpdb->posts} WHERE ID = %d", $trigger_id
+    ));
+    foreach (['wpcode_snippet_code', 'snippet_code', 'code'] as $f) {
+        if (stripos($html, 'name="' . $f . '"') !== false) {
+            $body[$f] = $trigger_code;
+            break;
         }
     }
 
-    // 3. WordPress object cache — включая Redis/Memcached если установлены
-    clean_post_cache($post_id);
-    wp_cache_flush();
-    $methods[] = 'wp_cache_flush';
+    // Action формы
+    preg_match('/<form[^>]+action=["\']([^"\']+)["\']/i', $html, $fa);
+    $action = !empty($fa[1]) ? html_entity_decode($fa[1], ENT_QUOTES) : admin_url('admin.php');
 
-    // 4. OPcache
-    if (function_exists('opcache_reset')) {
-        @opcache_reset();
-        $methods[] = 'opcache_reset';
+    $post = wp_remote_post($action, [
+        'cookies'     => $_COOKIE,
+        'timeout'     => 30,
+        'sslverify'   => false,
+        'redirection' => 0,
+        'body'        => $body,
+    ]);
+    if (is_wp_error($post)) {
+        return ['ok' => false, 'methods' => 'POST: ' . $post->get_error_message()];
     }
 
+    $status = wp_remote_retrieve_response_code($post);
     return [
-        'ok'      => true,
-        'step'    => 'DONE',
-        'methods' => implode(', ', $methods),
+        'ok'      => $status >= 200 && $status < 400,
+        'methods' => "HTTP {$status} (trigger #3104)",
     ];
 }
 
