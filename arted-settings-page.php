@@ -1,9 +1,6 @@
 <?php
 // ── Страница настроек галереи (Telegram и др.) ────────────────────────────
-add_action('admin_menu', function() {
-    add_menu_page('Настройки Gallery', 'Настройки Gallery', 'manage_options',
-        'arted-settings', 'arted_settings_page', 'dashicons-admin-settings', 81);
-});
+// Меню добавляется как submenu в arted-gallery-admin.php
 
 add_action('admin_init', function() {
     register_setting('arted_settings_group', 'arted_settings');

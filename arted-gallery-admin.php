@@ -2,15 +2,13 @@
 // ── Страница «Галерея» в WP Admin ─────────────────────────────────────────
 
 add_action('admin_menu', function() {
-    add_menu_page(
-        'Галерея',
-        'Галерея',
-        'manage_options',
-        'arted-gallery',
-        'arted_gallery_admin_page',
-        'dashicons-format-gallery',
-        26
-    );
+    add_menu_page('Галерея', 'Галерея', 'manage_options', 'arted-gallery',
+        'arted_gallery_admin_page', 'dashicons-format-gallery', 26);
+
+    add_submenu_page('arted-gallery', 'Работы',     'Работы',     'manage_options', 'arted-gallery',       'arted_gallery_admin_page');
+    add_submenu_page('arted-gallery', 'Художники',  'Художники',  'manage_options', 'arted-artists',       'arted_artists_admin_page');
+    add_submenu_page('arted-gallery', 'Выплаты',    'Выплаты',    'manage_options', 'arted-payouts-admin', 'arted_payouts_admin_page');
+    add_submenu_page('arted-gallery', 'Настройки',  'Настройки',  'manage_options', 'arted-settings',      'arted_settings_page');
 });
 
 // Быстрое изменение статуса прямо из списка
@@ -233,4 +231,124 @@ function arted_gallery_admin_page() {
         ?>
     </div>
     <?php
+}
+
+// ── Страница Художники ────────────────────────────────────────────────────
+
+add_action('admin_post_arted_send_artist_message', 'arted_admin_send_artist_message');
+
+function arted_admin_send_artist_message() {
+    if (!current_user_can('manage_options')) wp_die('Нет доступа');
+    check_admin_referer('arted_artist_message');
+
+    $artist_id = (int)($_POST['artist_id'] ?? 0);
+    $text      = trim(sanitize_textarea_field($_POST['message_text'] ?? ''));
+
+    if ($artist_id && $text && function_exists('arted_artist_add_message')) {
+        arted_artist_add_message($artist_id, $text);
+    }
+
+    wp_redirect(add_query_arg(['page' => 'arted-artists', 'msg_sent' => 1], admin_url('admin.php')));
+    exit;
+}
+
+function arted_artists_admin_page() {
+    $artists = get_users(['role' => 'artist', 'orderby' => 'registered', 'order' => 'DESC']);
+
+    $verify_labels = [
+        '1' => ['Верифицирован', '#00a32a'],
+        '2' => ['На проверке',   '#dba617'],
+        ''  => ['Новый',         '#888'],
+    ];
+
+    // Быстрая верификация
+    if (isset($_GET['verify_artist']) && check_admin_referer('arted_verify')) {
+        $uid = (int)$_GET['verify_artist'];
+        $val = (int)$_GET['verify_val'];
+        update_user_meta($uid, 'arted_artist_verified', $val);
+        if ($val == 1 && function_exists('arted_artist_add_message')) {
+            $artist = get_userdata($uid);
+            arted_artist_add_message($uid, '✅ Ваш профиль художника верифицирован галереей Arted.');
+        }
+        wp_redirect(admin_url('admin.php?page=arted-artists'));
+        exit;
+    }
+    ?>
+    <div class="wrap">
+        <h1>Художники <span style="font-size:13px;font-weight:400;color:#888"><?= count($artists) ?></span></h1>
+
+        <?php if (!empty($_GET['msg_sent'])): ?>
+        <div class="notice notice-success is-dismissible"><p>Сообщение отправлено.</p></div>
+        <?php endif; ?>
+
+        <table class="wp-list-table widefat fixed striped" style="table-layout:auto">
+            <thead>
+                <tr>
+                    <th style="width:40px"></th>
+                    <th>Художник</th>
+                    <th style="width:80px">Работ</th>
+                    <th style="width:100px">На модерации</th>
+                    <th style="width:120px">Статус</th>
+                    <th style="width:110px">Зарегистрирован</th>
+                    <th>Написать</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($artists as $artist):
+                $name       = get_user_meta($artist->ID, 'arted_artist_name', true) ?: $artist->display_name;
+                $verified   = (string)(get_user_meta($artist->ID, 'arted_artist_verified', true) ?? '');
+                [$vlabel, $vcolor] = $verify_labels[$verified] ?? $verify_labels[''];
+                $works_pub  = count_user_posts($artist->ID, 'product', true);
+                $works_pend = (int)(new WP_Query([
+                    'post_type' => 'product', 'author' => $artist->ID,
+                    'post_status' => ['pending'], 'posts_per_page' => -1, 'fields' => 'ids',
+                ]))->found_posts;
+                $avatar     = get_avatar($artist->ID, 36, '', '', ['class' => 'rounded']);
+                $gallery_url = admin_url('admin.php?page=arted-gallery&artist_id=' . $artist->ID);
+                $nonce_v    = wp_create_nonce('arted_verify');
+            ?>
+                <tr>
+                    <td><?= $avatar ?></td>
+                    <td>
+                        <strong><?= esc_html($name) ?></strong>
+                        <div style="font-size:11px;color:#888"><?= esc_html($artist->user_email) ?></div>
+                    </td>
+                    <td><a href="<?= esc_url($gallery_url) ?>"><?= $works_pub ?></a></td>
+                    <td>
+                        <?php if ($works_pend): ?>
+                        <a href="<?= esc_url($gallery_url . '&post_status=pending') ?>" style="color:#dba617;font-weight:600"><?= $works_pend ?> ожид.</a>
+                        <?php else: ?>—<?php endif; ?>
+                    </td>
+                    <td>
+                        <span style="background:<?= $vcolor ?>;color:#fff;padding:2px 8px;border-radius:3px;font-size:11px"><?= esc_html($vlabel) ?></span>
+                        <?php if ($verified != '1'): ?>
+                        <a href="<?= esc_url(admin_url('admin.php?page=arted-artists&verify_artist=' . $artist->ID . '&verify_val=1&_wpnonce=' . $nonce_v)) ?>"
+                           style="font-size:11px;margin-left:4px" title="Верифицировать">✓</a>
+                        <?php endif; ?>
+                    </td>
+                    <td style="font-size:12px;color:#888"><?= date_i18n('d.m.Y', strtotime($artist->user_registered)) ?></td>
+                    <td>
+                        <form method="post" action="<?= esc_url(admin_url('admin-post.php')) ?>" style="display:flex;gap:6px;align-items:flex-start">
+                            <?php wp_nonce_field('arted_artist_message'); ?>
+                            <input type="hidden" name="action"    value="arted_send_artist_message">
+                            <input type="hidden" name="artist_id" value="<?= $artist->ID ?>">
+                            <textarea name="message_text" rows="1" placeholder="Написать художнику…"
+                                      style="width:220px;resize:vertical;font-size:12px"
+                                      onfocus="this.rows=3"></textarea>
+                            <button type="submit" class="button button-small">Отправить</button>
+                        </form>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php
+}
+
+// Заглушка — реальная страница в arted-payouts.php
+if (!function_exists('arted_payouts_admin_page')) {
+    function arted_payouts_admin_page() {
+        echo '<div class="wrap"><h1>Выплаты</h1><p>Загружается…</p></div>';
+    }
 }

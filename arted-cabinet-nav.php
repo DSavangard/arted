@@ -320,7 +320,7 @@ function arted_tab_orders() {
     echo '</div>';
 }
 
-function arted_tab_payouts() { echo '<div class="arted-tab-content"><p>Выплаты — в разработке</p></div>'; }
+// arted_tab_payouts() определена в arted-payouts.php
 
 function arted_tab_messages() {
     $user_id  = get_current_user_id();
