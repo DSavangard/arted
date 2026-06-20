@@ -86,28 +86,39 @@ function arted_wpcode_resave($post_id, $code) {
     );
     $methods[] = "transients:{$deleted}";
 
-    // 2. Удаляем ВСЕ файлы кэша WPCode напрямую через Reflection
-    // (file_cache->delete использует md5($key) для имён файлов — угадать ключ невозможно)
+    // 2. Удаляем файлы кэша WPCode по стандартным путям + через Reflection
+    $cache_dirs = [
+        WP_CONTENT_DIR . '/uploads/wpcode-cache/',
+        WP_CONTENT_DIR . '/uploads/wpcode/',
+        WP_CONTENT_DIR . '/cache/wpcode/',
+        WP_CONTENT_DIR . '/wpcode-cache/',
+    ];
+    // Дополнительно ищем через Reflection
     if (function_exists('wpcode') && is_object(wpcode()) && isset(wpcode()->file_cache)) {
         try {
             $ref = new ReflectionClass(wpcode()->file_cache);
             foreach ($ref->getProperties() as $prop) {
                 $prop->setAccessible(true);
                 $val = $prop->getValue(wpcode()->file_cache);
-                if (is_string($val) && is_dir($val) && strpos($val, WP_CONTENT_DIR) !== false) {
-                    $files = array_merge(glob(rtrim($val, '/') . '/*.php') ?: [], glob(rtrim($val, '/') . '/*.json') ?: []);
-                    foreach ($files as $f) {
-                        @unlink($f);
-                        if (function_exists('opcache_invalidate')) opcache_invalidate($f, true);
-                    }
-                    $methods[] = 'cache_dir:' . count($files) . '_files_deleted';
-                    break;
+                if (is_string($val) && @is_dir($val)) {
+                    $cache_dirs[] = $val;
                 }
             }
-        } catch (Exception $e) {
-            $methods[] = 'reflection_err:' . $e->getMessage();
-        }
+        } catch (Exception $e) {}
     }
+    $cache_files_deleted = 0;
+    $cache_dir_found     = '';
+    foreach (array_unique($cache_dirs) as $dir) {
+        if (!is_dir($dir)) continue;
+        $files = array_merge(glob($dir . '*.php') ?: [], glob($dir . '*.json') ?: []);
+        foreach ($files as $f) {
+            @unlink($f);
+            if (function_exists('opcache_invalidate')) opcache_invalidate($f, true);
+            $cache_files_deleted++;
+        }
+        if (!$cache_dir_found && $cache_files_deleted) $cache_dir_found = $dir;
+    }
+    $methods[] = 'cache_files:' . $cache_files_deleted . ($cache_dir_found ? '(' . basename(rtrim($cache_dir_found, '/')) . ')' : '(dir_not_found)');
 
     // 3. WordPress object cache (включая Redis/Memcached)
     clean_post_cache($post_id);
