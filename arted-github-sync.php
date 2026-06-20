@@ -149,30 +149,37 @@ function arted_github_sync_one($filename, $post_id) {
         do_action('save_post_' . $updated_post->post_type, $post_id, $updated_post, true);
     }
 
-    // Пробуем вызвать WPCode API напрямую (WPCode 2.x)
+    // Очищаем WPCode кэши через API
+    $files_deleted = 0;
     if (function_exists('wpcode') && is_object(wpcode())) {
         $wpcode = wpcode();
+
+        // WPCode_Snippet_Cache
         if (isset($wpcode->cache) && method_exists($wpcode->cache, 'delete_all')) {
             $wpcode->cache->delete_all();
         }
-        if (isset($wpcode->snippets) && method_exists($wpcode->snippets, 'get_snippets')) {
-            // Форсируем перезагрузку списка сниппетов
-            do_action('wpcode_cache_cleared');
-        }
-    }
 
-    // Удаляем файлы кэша с диска (WPCode пишет compiled PHP-файлы)
-    $cache_dirs = [
-        WP_CONTENT_DIR . '/uploads/wpcode-cache/',
-        WP_CONTENT_DIR . '/cache/wpcode/',
-        WP_CONTENT_DIR . '/uploads/wpcode/',
-    ];
-    $files_deleted = 0;
-    foreach ($cache_dirs as $dir) {
-        if (!is_dir($dir)) continue;
-        foreach (glob($dir . '*.php') ?: [] as $f) {
-            if (@unlink($f)) $files_deleted++;
+        // WPCode_File_Cache — именно он отвечает за скомпилированные файлы
+        if (isset($wpcode->file_cache)) {
+            $fc = $wpcode->file_cache;
+            foreach (['delete_all', 'clear', 'flush', 'purge', 'clear_cache'] as $m) {
+                if (method_exists($fc, $m)) {
+                    $fc->$m();
+                    break;
+                }
+            }
+            // Если API не дал метода — ищем директорию через рефлексию
+            if (method_exists($fc, 'get_cache_dir')) {
+                $dir = $fc->get_cache_dir();
+                if ($dir && is_dir($dir)) {
+                    foreach (glob($dir . '*') ?: [] as $f) {
+                        if (is_file($f) && @unlink($f)) $files_deleted++;
+                    }
+                }
+            }
         }
+
+        do_action('wpcode_cache_cleared');
     }
 
     return [
@@ -217,6 +224,11 @@ function arted_inspect_snippet($post_id) {
         $wpcode = wpcode();
         $out['wpcode_classes'] = array_filter(get_object_vars($wpcode), fn($v) => is_object($v));
         $out['wpcode_classes'] = array_map('get_class', $out['wpcode_classes']);
+
+        // Методы file_cache — ключевой объект
+        if (isset($wpcode->file_cache)) {
+            $out['file_cache_methods'] = get_class_methods($wpcode->file_cache);
+        }
 
         // Пробуем получить сниппет через API
         if (isset($wpcode->snippets) && method_exists($wpcode->snippets, 'get_snippet')) {
