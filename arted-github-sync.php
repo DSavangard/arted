@@ -64,72 +64,36 @@ function arted_github_fetch($filename) {
 //                                    (WPCode перехватывает запись или хранит не в post_content)
 //   UPDATED                        — успешно обновлено (ok=true)
 
-// Симулирует нажатие Save Changes в WPCode UI для сниппета 3104 (arted-settings-page).
-// Сохранение любого сниппета заставляет WPCode перекомпилировать кэш всех сниппетов.
-// Код 3104 берём прямо из БД — ничего не меняем, просто триггерим сохранение.
+// Сбрасывает кэш WPCode. WPCode хранит все активные сниппеты в file_cache под
+// ключом 'active' (не по post_id). После $wpdb->update() нужно удалить именно этот ключ —
+// тогда при следующем запросе WPCode перечитает все сниппеты из БД заново.
 function arted_wpcode_resave($post_id, $code) {
-    global $wpdb;
+    $deleted = [];
 
-    $trigger_id = 3104;
-    $edit_url   = admin_url('admin.php?page=wpcode-snippet-manager&snippet_id=' . $trigger_id);
-
-    $get = wp_remote_get($edit_url, [
-        'cookies'   => $_COOKIE,
-        'timeout'   => 20,
-        'sslverify' => false,
-    ]);
-    if (is_wp_error($get)) {
-        return ['ok' => false, 'methods' => 'GET: ' . $get->get_error_message()];
-    }
-
-    $html = wp_remote_retrieve_body($get);
-
-    // Nonce
-    if (!preg_match('/name="([^"]*nonce[^"]*)"\s+value="([^"]+)"/i', $html, $nm)) {
-        return ['ok' => false, 'methods' => 'nonce не найден'];
-    }
-
-    // Все hidden inputs формы
-    preg_match_all('/<input[^>]+type=["\']hidden["\'][^>]*>/i', $html, $tags);
-    $body = [];
-    foreach ($tags[0] as $tag) {
-        if (preg_match('/name=["\']([^"\']+)["\']/i', $tag, $n) &&
-            preg_match('/value=["\']([^"\']*)["\']/', $tag, $v)) {
-            $body[$n[1]] = html_entity_decode($v[1], ENT_QUOTES);
-        }
-    }
-    $body[$nm[1]] = $nm[2];
-
-    // Код берём из БД — точно такой же как уже сохранён, никаких изменений
-    $trigger_code = (string) $wpdb->get_var($wpdb->prepare(
-        "SELECT post_content FROM {$wpdb->posts} WHERE ID = %d", $trigger_id
-    ));
-    foreach (['wpcode_snippet_code', 'snippet_code', 'code'] as $f) {
-        if (stripos($html, 'name="' . $f . '"') !== false) {
-            $body[$f] = $trigger_code;
-            break;
+    if (function_exists('wpcode') && is_object(wpcode()) && isset(wpcode()->file_cache)) {
+        $fc = wpcode()->file_cache;
+        if (method_exists($fc, 'delete')) {
+            // Пробуем все возможные ключи общего кэша сниппетов
+            foreach (['active', 'snippets', 'all', 'php', 'enabled', 'wpcode'] as $key) {
+                $before = method_exists($fc, 'get') ? $fc->get($key) : false;
+                $fc->delete($key);
+                $after  = method_exists($fc, 'get') ? $fc->get($key) : false;
+                if ($before !== false || $after !== $before) {
+                    $deleted[] = $key . '(' . strlen((string)$before) . 'b)';
+                }
+            }
+            // Также по post_id на всякий случай
+            $fc->delete($post_id);
         }
     }
 
-    // Action формы
-    preg_match('/<form[^>]+action=["\']([^"\']+)["\']/i', $html, $fa);
-    $action = !empty($fa[1]) ? html_entity_decode($fa[1], ENT_QUOTES) : admin_url('admin.php');
+    clean_post_cache($post_id);
 
-    $post = wp_remote_post($action, [
-        'cookies'     => $_COOKIE,
-        'timeout'     => 30,
-        'sslverify'   => false,
-        'redirection' => 0,
-        'body'        => $body,
-    ]);
-    if (is_wp_error($post)) {
-        return ['ok' => false, 'methods' => 'POST: ' . $post->get_error_message()];
-    }
+    if (function_exists('opcache_reset')) @opcache_reset();
 
-    $status = wp_remote_retrieve_response_code($post);
     return [
-        'ok'      => $status >= 200 && $status < 400,
-        'methods' => "HTTP {$status} (trigger #3104)",
+        'ok'      => true,
+        'methods' => 'file_cache::delete keys=[' . (implode(',', $deleted) ?: 'none found') . '] + opcache_reset',
     ];
 }
 
