@@ -98,9 +98,15 @@ function arted_wpcode_resave($post_id, $code) {
 
     if (function_exists('opcache_reset')) @opcache_reset();
 
+    // LiteSpeed Cache
+    do_action('litespeed_purge_all');
+    if (class_exists('\LiteSpeed\Purge') && method_exists('\LiteSpeed\Purge', 'purge_all')) {
+        \LiteSpeed\Purge::purge_all();
+    }
+
     return [
         'ok'      => true,
-        'methods' => 'file_cache::delete keys=[' . (implode(',', $deleted) ?: 'none found') . '] + opcache_reset',
+        'methods' => 'file_cache::delete keys=[' . (implode(',', $deleted) ?: 'none found') . '] + opcache_reset + litespeed_purge',
     ];
 }
 
