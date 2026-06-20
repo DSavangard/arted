@@ -75,62 +75,20 @@ function arted_github_fetch($filename) {
 function arted_wpcode_resave($post_id, $code) {
     $methods    = [];
     $trigger_id = 3137;
-    $done       = false;
 
-    // Вариант 1: WPCode PHP API — snippet->set_active() + snippets->save_snippet()
-    // Это тот же путь что WPCode UI, гарантирует пересборку кэша.
-    if (function_exists('wpcode') && is_object(wpcode()) && isset(wpcode()->snippets)) {
-        $lib = wpcode()->snippets;
-        if (method_exists($lib, 'get_snippet') && method_exists($lib, 'save_snippet')) {
-            $snip = $lib->get_snippet($trigger_id);
-            if ($snip && method_exists($snip, 'set_active')) {
-                $snip->set_active(false);
-                $lib->save_snippet($snip);
-                $snip->set_active(true);
-                $lib->save_snippet($snip);
-                $done      = true;
-                $methods[] = 'wpcode_api_toggle';
-            }
-        }
-        // Вариант 1b: прямые методы библиотеки
-        if (!$done) {
-            foreach ([['deactivate_snippet','activate_snippet'],['toggle_snippet','toggle_snippet']] as [$off,$on]) {
-                if (method_exists($lib, $off) && method_exists($lib, $on)) {
-                    $lib->$off($trigger_id);
-                    $lib->$on($trigger_id);
-                    $done      = true;
-                    $methods[] = "wpcode_{$off}";
-                    break;
-                }
-            }
-        }
+    // wp_update_post (в отличие от $wpdb->update) проходит через полный
+    // WordPress-пайплайн: transition_post_status → save_post → save_post_wpcode.
+    // WPCode слушает именно эти хуки и только через них чистит свой кэш.
+    // Trigger-сниппет содержит только "// sync trigger" — kses ничего не срежет.
+    $r1 = wp_update_post(['ID' => $trigger_id, 'post_status' => 'draft'],   true);
+    $r2 = wp_update_post(['ID' => $trigger_id, 'post_status' => 'publish'], true);
+
+    if (!is_wp_error($r1) && !is_wp_error($r2)) {
+        $methods[] = 'wp_update_post_toggle_#' . $trigger_id;
+    } else {
+        $err = is_wp_error($r1) ? $r1->get_error_message() : $r2->get_error_message();
+        $methods[] = 'wp_update_post_err:' . $err;
     }
-
-    // Вариант 2 (fallback): $wpdb + все возможные хуки
-    if (!$done) {
-        global $wpdb;
-        foreach (['draft','publish'] as $status) {
-            $wpdb->update($wpdb->posts, ['post_status' => $status], ['ID' => $trigger_id]);
-            clean_post_cache($trigger_id);
-            $p = get_post($trigger_id);
-            if ($p) {
-                $from = $status === 'draft' ? 'publish' : 'draft';
-                do_action('transition_post_status', $status, $from, $p);
-                do_action('save_post',        $trigger_id, $p, true);
-                do_action('save_post_wpcode', $trigger_id, $p, true);
-            }
-        }
-        $methods[] = 'wpdb_toggle_#' . $trigger_id;
-    }
-
-    // Удаляем все WPCode-трансиенты из БД
-    global $wpdb;
-    $del = $wpdb->query(
-        "DELETE FROM {$wpdb->options}
-         WHERE option_name LIKE '_transient_wpcode%'
-            OR option_name LIKE '_transient_timeout_wpcode%'"
-    );
-    if ($del) $methods[] = 'transients:' . $del;
 
     wp_cache_flush();
     $methods[] = 'wp_cache_flush';
@@ -140,7 +98,7 @@ function arted_wpcode_resave($post_id, $code) {
         $methods[] = 'opcache_reset';
     }
 
-    return ['ok' => true, 'methods' => implode(', ', $methods)];
+    return ['ok' => !is_wp_error($r1) && !is_wp_error($r2), 'methods' => implode(', ', $methods)];
 }
 
 function arted_github_sync_one($filename, $post_id) {
@@ -161,8 +119,11 @@ function arted_github_sync_one($filename, $post_id) {
         return ['ok' => false, 'code' => 'POST_NOT_FOUND', 'error' => 'POST_NOT_FOUND: сниппет #' . $post_id . ' отсутствует в БД'];
     }
 
-    // Контент уже актуален — resave вызывается один раз снаружи после всех синков
-    if (rtrim($current) === rtrim($new_content)) {
+    // Нормализуем как WPCode: unix-переносы, без trailing whitespace
+    $current     = rtrim(str_replace("\r\n", "\n", $current));
+    $new_content = rtrim(str_replace("\r\n", "\n", $new_content));
+
+    if ($current === $new_content) {
         return [
             'ok'      => true,
             'code'    => 'ALREADY_UP_TO_DATE',
@@ -197,7 +158,7 @@ function arted_github_sync_one($filename, $post_id) {
         (int) $post_id
     ));
 
-    if (rtrim($stored) !== rtrim($new_content)) {
+    if (rtrim(str_replace("\r\n", "\n", $stored)) !== $new_content) {
         return [
             'ok'    => false,
             'code'  => 'READBACK_MISMATCH',
