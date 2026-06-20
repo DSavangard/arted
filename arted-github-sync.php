@@ -182,6 +182,14 @@ function arted_github_sync_one($filename, $post_id) {
         do_action('wpcode_cache_cleared');
     }
 
+    // Шаг 3: сбрасываем PHP OPcache.
+    // WPCode пишет скомпилированные PHP-файлы на диск — PHP кэширует их байткод
+    // и продолжает выполнять старую версию до истечения TTL (обычно 60-300 сек).
+    // opcache_reset() немедленно инвалидирует весь кэш байткода.
+    if (function_exists('opcache_reset')) {
+        @opcache_reset();
+    }
+
     return [
         'ok'           => true,
         'code'         => 'UPDATED',
