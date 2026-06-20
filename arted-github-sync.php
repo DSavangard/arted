@@ -37,8 +37,15 @@ function arted_github_snippet_map() {
 }
 
 function arted_github_fetch($filename) {
-    $url      = 'https://raw.githubusercontent.com/DSavangard/arted/main/' . $filename;
-    $response = wp_remote_get($url, ['timeout' => 15]);
+    // GitHub API — без CDN-кэша, всегда возвращает актуальную версию
+    $url      = 'https://api.github.com/repos/DSavangard/arted/contents/' . rawurlencode($filename) . '?ref=main';
+    $response = wp_remote_get($url, [
+        'timeout' => 15,
+        'headers' => [
+            'Accept'     => 'application/vnd.github.v3.raw',
+            'User-Agent' => 'arted-sync/1.0',
+        ],
+    ]);
     if (is_wp_error($response)) return ['ok' => false, 'error' => 'FETCH_FAILED: ' . $response->get_error_message()];
     $code = wp_remote_retrieve_response_code($response);
     if ($code !== 200) return ['ok' => false, 'error' => 'FETCH_HTTP_' . $code];
