@@ -3,6 +3,7 @@
 
 // ── Вспомогательные функции ───────────────────────────────────────────────
 
+if (!function_exists('arted_tg_send')) :
 function arted_tg_send($text) {
     $s = get_option('arted_settings', []);
     $token   = $s['tg_token']   ?? '';
@@ -18,7 +19,9 @@ function arted_tg_send($text) {
         ],
     ]);
 }
+endif;
 
+if (!function_exists('arted_artist_add_message')) :
 function arted_artist_add_message($user_id, $text) {
     $messages   = get_user_meta($user_id, 'arted_messages', true) ?: [];
     $messages[] = [
@@ -31,6 +34,7 @@ function arted_artist_add_message($user_id, $text) {
     $unread = (int) get_user_meta($user_id, 'arted_unread_messages', true);
     update_user_meta($user_id, 'arted_unread_messages', $unread + 1);
 }
+endif;
 
 // ── A. Telegram-уведомление когда художник добавляет работу ──────────────
 // Товар уходит на модерацию (статус pending) — бот пишет в чат галереи.
