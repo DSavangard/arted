@@ -1,4 +1,9 @@
 <?php
+// ── Хелпер: ставка комиссии галереи ──────────────────────────────────────
+function arted_get_commission_rate() {
+    return (float)(get_option('arted_settings', [])['commission_rate'] ?? 10);
+}
+
 // ── Вкладка: Мои работы ───────────────────────────────────────────────────
 function arted_tab_works() {
     $user_id = get_current_user_id();
@@ -68,10 +73,11 @@ function arted_tab_works() {
         foreach ($works as $work) {
             $product  = wc_get_product($work->ID);
             if (!$product) continue;
-            $img_id   = $product->get_image_id();
-            $img_url  = $img_id ? wp_get_attachment_image_url($img_id, 'medium') : '';
-            $price    = $product->get_price();
-            $edit_url = add_query_arg('work_id', $work->ID, $add_url);
+            $img_id       = $product->get_image_id();
+            $img_url      = $img_id ? wp_get_attachment_image_url($img_id, 'medium') : '';
+            $artist_price = get_post_meta($work->ID, 'arted_artist_price', true);
+            $price        = $artist_price !== '' ? (float)$artist_price : (float)$product->get_price();
+            $edit_url     = add_query_arg('work_id', $work->ID, $add_url);
 
             $status = $work->post_status;
             $status_map = [
@@ -92,7 +98,7 @@ function arted_tab_works() {
             echo '<div class="arted-work-card-body">';
             echo '<div class="arted-work-card-status ' . $s['cls'] . '">' . esc_html($s['label']) . '</div>';
             echo '<div class="arted-work-card-name">' . esc_html($product->get_name()) . '</div>';
-            if ($price) echo '<div class="arted-work-card-price">' . wc_price($price) . '</div>';
+            if ($price) echo '<div class="arted-work-card-price">' . number_format($price, 0, '.', ' ') . ' ₽</div>';
             echo '<div class="arted-work-card-actions">';
             echo '<a href="' . esc_url($edit_url) . '" class="arted-btn-secondary arted-btn-sm">' . esc_html($l['edit']) . '</a>';
             echo '<button class="arted-btn-danger arted-btn-sm arted-delete-work" data-id="' . $work->ID . '" data-confirm="' . esc_attr($l['confirm']) . '">' . esc_html($l['delete']) . '</button>';
@@ -151,8 +157,9 @@ function arted_tab_add_work() {
             'name_hint'   => 'Как называется эта работа?',
             'desc'        => 'Описание',
             'desc_hint'   => 'Техника, размер, год, история создания...',
-            'price'       => 'Цена (₽)',
-            'price_hint'  => 'Цена для покупателя',
+            'price'       => 'Ваша цена (₽)',
+            'price_hint'  => 'Сколько хотите получить за работу',
+            'buyer_pays'  => 'Покупатель заплатит: %s ₽ (+%s%%)',
             'photo'       => 'Главное фото',
             'photo_hint'  => 'Основное фото работы (обязательно)',
             'gallery'     => 'Дополнительные фото',
@@ -171,8 +178,9 @@ function arted_tab_add_work() {
             'name_hint'   => 'What is this work called?',
             'desc'        => 'Description',
             'desc_hint'   => 'Technique, size, year, story behind the work...',
-            'price'       => 'Price',
-            'price_hint'  => 'Price for the buyer',
+            'price'       => 'Your price',
+            'price_hint'  => 'How much do you want to receive for this work',
+            'buyer_pays'  => 'Buyer pays: %s ₽ (+%s%%)',
             'photo'       => 'Main photo',
             'photo_hint'  => 'Primary photo of the work (required)',
             'gallery'     => 'Additional photos',
@@ -191,8 +199,9 @@ function arted_tab_add_work() {
             'name_hint'   => "Comment s'appelle cette œuvre?",
             'desc'        => 'Description',
             'desc_hint'   => 'Technique, taille, année, histoire de création...',
-            'price'       => 'Prix',
-            'price_hint'  => "Prix pour l'acheteur",
+            'price'       => 'Votre prix',
+            'price_hint'  => 'Combien voulez-vous recevoir pour cette œuvre',
+            'buyer_pays'  => "L'acheteur paie: %s ₽ (+%s%%)",
             'photo'       => 'Photo principale',
             'photo_hint'  => "Photo principale de l'œuvre (obligatoire)",
             'gallery'     => 'Photos supplémentaires',
@@ -207,9 +216,13 @@ function arted_tab_add_work() {
     ];
     $l = $t[$lang] ?? $t['ru'];
 
+    $commission_rate = arted_get_commission_rate();
+
     $title     = $product ? $product->get_name() : '';
     $desc      = $product ? $product->get_description() : '';
-    $price     = $product ? $product->get_regular_price() : '';
+    // Показываем цену художника, а не итоговую WC-цену
+    $artist_price_stored = $work_id ? get_post_meta($work_id, 'arted_artist_price', true) : '';
+    $price     = $artist_price_stored !== '' ? $artist_price_stored : ($product ? $product->get_regular_price() : '');
     $img_id    = $product ? $product->get_image_id() : 0;
     $img_url   = $img_id ? wp_get_attachment_image_url($img_id, 'medium') : '';
     $gallery_ids = $product ? $product->get_gallery_image_ids() : [];
@@ -248,9 +261,15 @@ function arted_tab_add_work() {
     echo '</div>';
 
     // Цена
+    $buyer_preview = '';
+    if ($price && (float)$price > 0) {
+        $buyer_price_calc = round((float)$price * (1 + $commission_rate / 100));
+        $buyer_preview = sprintf($l['buyer_pays'], number_format($buyer_price_calc, 0, '.', ' '), $commission_rate);
+    }
     echo '<div class="arted-field">';
     echo '<label class="arted-field-label">' . esc_html($l['price']) . '</label>';
-    echo '<input type="number" name="work_price" class="arted-input arted-input-price" value="' . esc_attr($price) . '" placeholder="' . esc_attr($l['price_hint']) . '" min="0" step="1">';
+    echo '<input type="number" name="work_price" id="arted-work-price" class="arted-input arted-input-price" value="' . esc_attr($price) . '" placeholder="' . esc_attr($l['price_hint']) . '" min="0" step="1">';
+    echo '<div id="arted-buyer-price" class="arted-field-hint arted-buyer-price-hint" style="' . ($buyer_preview ? '' : 'display:none') . '">' . esc_html($buyer_preview) . '</div>';
     echo '</div>';
 
     // Категория
@@ -297,6 +316,7 @@ function arted_tab_add_work() {
     ?>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Превью фото
         var photoInput = document.getElementById('work_photo_file');
         if (photoInput) {
             photoInput.addEventListener('change', function() {
@@ -308,6 +328,26 @@ function arted_tab_add_work() {
                     };
                     reader.readAsDataURL(this.files[0]);
                 }
+            });
+        }
+
+        // Динамическое превью цены покупателя
+        var priceInput   = document.getElementById('arted-work-price');
+        var buyerPreview = document.getElementById('arted-buyer-price');
+        var rate         = <?= (float)$commission_rate ?>;
+        var buyerTpl     = <?= json_encode($l['buyer_pays']) ?>;
+
+        if (priceInput && buyerPreview) {
+            priceInput.addEventListener('input', function() {
+                var v = parseFloat(this.value);
+                if (!v || v <= 0) { buyerPreview.style.display = 'none'; return; }
+                var buyer = Math.round(v * (1 + rate / 100));
+                var formatted = buyer.toLocaleString('ru-RU');
+                buyerPreview.textContent = buyerTpl
+                    .replace('%s', formatted)
+                    .replace('%s', rate)
+                    .replace('%%', '%');
+                buyerPreview.style.display = '';
             });
         }
     });
@@ -323,12 +363,15 @@ function arted_handle_work_save() {
     $user = wp_get_current_user();
     if (!in_array('artist', (array) $user->roles)) return;
 
-    $user_id  = get_current_user_id();
-    $work_id  = (int)($_POST['arted_work_id'] ?? 0);
-    $title    = sanitize_text_field($_POST['work_title'] ?? '');
-    $desc     = sanitize_textarea_field($_POST['work_desc'] ?? '');
-    $price    = floatval($_POST['work_price'] ?? 0);
-    $cats     = array_map('intval', (array)($_POST['work_category'] ?? []));
+    $user_id      = get_current_user_id();
+    $work_id      = (int)($_POST['arted_work_id'] ?? 0);
+    $title        = sanitize_text_field($_POST['work_title'] ?? '');
+    $desc         = sanitize_textarea_field($_POST['work_desc'] ?? '');
+    $artist_price = floatval($_POST['work_price'] ?? 0);
+    $cats         = array_map('intval', (array)($_POST['work_category'] ?? []));
+
+    $commission_rate = arted_get_commission_rate();
+    $buyer_price     = $artist_price > 0 ? round($artist_price * (1 + $commission_rate / 100), 2) : 0;
 
     if (empty($title)) {
         wp_safe_redirect(add_query_arg('work_error', 'no_title', wc_get_account_endpoint_url('artist-add-work')));
@@ -381,9 +424,10 @@ function arted_handle_work_save() {
     if ($artist_name) update_post_meta($saved_id, 'author_name', $artist_name);
     if ($artist_city) update_post_meta($saved_id, 'author_city', $artist_city);
 
-    // Цена
-    update_post_meta($saved_id, '_price', $price);
-    update_post_meta($saved_id, '_regular_price', $price);
+    // Цена художника (для выплат) + итоговая цена WooCommerce (с комиссией)
+    update_post_meta($saved_id, 'arted_artist_price', $artist_price);
+    update_post_meta($saved_id, '_price', $buyer_price);
+    update_post_meta($saved_id, '_regular_price', $buyer_price);
     update_post_meta($saved_id, '_visibility', 'visible');
     update_post_meta($saved_id, '_stock_status', 'instock');
 
