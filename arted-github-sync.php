@@ -64,87 +64,47 @@ function arted_github_fetch($filename) {
 //                                    (WPCode перехватывает запись или хранит не в post_content)
 //   UPDATED                        — успешно обновлено (ok=true)
 
-// Триггерит пересборку кэша WPCode через HTTP-сохранение сниппета-заглушки (3104).
-// Логика: сохранение ЛЮБОГО сниппета пересобирает скомпилированный кэш ВСЕХ сниппетов.
-// Мы уже записали новый код в БД через $wpdb->update(). Теперь заставляем WPCode
-// перекомпилировать кэш — для этого «сохраняем» arted-settings-page (3104) с его же
-// текущим кодом из БД. Никаких UTF-8 строк и сложного синтаксиса — валидация пройдёт.
+// Сбрасывает все кэши WPCode. $wpdb->update() пишет в wp_posts, но WPCode
+// хранит скомпилированный список сниппетов в transients (wp_options) и object cache —
+// именно они не дают изменениям появиться без ручного сохранения через UI.
 function arted_wpcode_resave($post_id, $code) {
     global $wpdb;
+    $methods = [];
 
-    // Сниппет-триггер: простой, без стрелочных функций и кириллицы в коде
-    $trigger_id  = 3104;
-    $edit_url    = admin_url('admin.php?page=wpcode-snippet-manager&snippet_id=' . $trigger_id);
+    // 1. Удаляем все WPCode-transients из wp_options
+    $deleted = (int) $wpdb->query(
+        "DELETE FROM {$wpdb->options}
+         WHERE option_name LIKE '_transient_wpcode%'
+            OR option_name LIKE '_transient_timeout_wpcode%'
+            OR option_name LIKE '_site_transient_wpcode%'
+            OR option_name LIKE '_site_transient_timeout_wpcode%'"
+    );
+    $methods[] = "transients_deleted:{$deleted}";
 
-    // 1. GET страницы редактирования триггера — нужен nonce
-    $get = wp_remote_get($edit_url, [
-        'cookies'   => $_COOKIE,
-        'timeout'   => 20,
-        'sslverify' => false,
-    ]);
-    if (is_wp_error($get)) {
-        return ['ok' => false, 'methods' => 'GET failed: ' . $get->get_error_message()];
-    }
-
-    $html = wp_remote_retrieve_body($get);
-
-    // Ищем nonce
-    if (preg_match('/name="([^"]*nonce[^"]*)"\s+value="([^"]+)"/i', $html, $nm)) {
-        $nonce_field = $nm[1];
-        $nonce_value = $nm[2];
-    } elseif (preg_match('/"nonce"\s*:\s*"([^"]+)"/i', $html, $nm2)) {
-        $nonce_field = '_wpnonce';
-        $nonce_value = $nm2[1];
-    } else {
-        return ['ok' => false, 'methods' => 'nonce not found in WPCode edit page'];
-    }
-
-    // Все hidden inputs
-    preg_match_all('/<input[^>]+type=["\']hidden["\'][^>]*>/i', $html, $inputs_raw);
-    $post_data = [];
-    foreach ($inputs_raw[0] as $tag) {
-        if (preg_match('/name=["\']([^"\']+)["\']/i', $tag, $n) &&
-            preg_match('/value=["\']([^"\']*)["\']/', $tag, $v)) {
-            $post_data[$n[1]] = html_entity_decode($v[1], ENT_QUOTES);
-        }
-    }
-    $post_data[$nonce_field] = $nonce_value;
-
-    // 2. Текущий код триггера из БД (не меняем его — только дёргаем сохранение)
-    $trigger_code = (string) $wpdb->get_var($wpdb->prepare(
-        "SELECT post_content FROM {$wpdb->posts} WHERE ID = %d", $trigger_id
-    ));
-    foreach (['wpcode_snippet_code', 'code', 'snippet_code', 'wpcode_code'] as $try) {
-        if (strpos($html, 'name="' . $try . '"') !== false ||
-            strpos($html, "name='" . $try . "'") !== false) {
-            $post_data[$try] = $trigger_code;
-            break;
+    // 2. file_cache->delete (на случай если WPCode кэширует отдельные сниппеты)
+    if (function_exists('wpcode') && is_object(wpcode()) && isset(wpcode()->file_cache)) {
+        $fc = wpcode()->file_cache;
+        if (method_exists($fc, 'delete')) {
+            $fc->delete($post_id);
+            $methods[] = 'file_cache::delete';
         }
     }
 
-    // Action формы
-    preg_match('/<form[^>]+method=["\']post["\'][^>]*action=["\']([^"\']+)["\']/i', $html, $fa);
-    $action_url = !empty($fa[1]) ? html_entity_decode($fa[1], ENT_QUOTES) : $edit_url;
+    // 3. WordPress object cache — включая Redis/Memcached если установлены
+    clean_post_cache($post_id);
+    wp_cache_flush();
+    $methods[] = 'wp_cache_flush';
 
-    // 3. POST — WPCode сохраняет триггер и пересобирает кэш всех сниппетов из БД
-    $post = wp_remote_post($action_url, [
-        'cookies'     => $_COOKIE,
-        'timeout'     => 30,
-        'sslverify'   => false,
-        'redirection' => 0,
-        'body'        => $post_data,
-    ]);
-    if (is_wp_error($post)) {
-        return ['ok' => false, 'methods' => 'POST failed: ' . $post->get_error_message()];
+    // 4. OPcache
+    if (function_exists('opcache_reset')) {
+        @opcache_reset();
+        $methods[] = 'opcache_reset';
     }
-
-    $http = wp_remote_retrieve_response_code($post);
-
-    if (function_exists('opcache_reset')) @opcache_reset();
 
     return [
-        'ok'      => ($http >= 200 && $http < 400),
-        'methods' => "trigger save #$trigger_id → HTTP $http, opcache_reset",
+        'ok'      => true,
+        'step'    => 'DONE',
+        'methods' => implode(', ', $methods),
     ];
 }
 
@@ -166,15 +126,13 @@ function arted_github_sync_one($filename, $post_id) {
         return ['ok' => false, 'code' => 'POST_NOT_FOUND', 'error' => 'POST_NOT_FOUND: сниппет #' . $post_id . ' отсутствует в БД'];
     }
 
-    // Контент уже актуален в БД, но кэш WPCode может быть устаревшим — всё равно триггерим resave
+    // Контент уже актуален — resave вызывается один раз снаружи после всех синков
     if (rtrim($current) === rtrim($new_content)) {
-        $resave_info = arted_wpcode_resave($post_id, $new_content);
         return [
             'ok'      => true,
             'code'    => 'ALREADY_UP_TO_DATE',
             'preview' => substr($new_content, 0, 50),
             'bytes'   => strlen($new_content),
-            'resave'  => $resave_info,
         ];
     }
 
@@ -332,17 +290,25 @@ function arted_github_sync_page() {
     $results = [];
     $inspect = null;
 
+    $resave_result = null;
+
     if (isset($_POST['arted_sync_all']) && check_admin_referer('arted_github_sync')) {
         foreach ($map as $file => $id) {
             $results[$file] = arted_github_sync_one($file, $id);
         }
+        $resave_result = arted_wpcode_resave(0, '');
     }
 
     if (isset($_POST['arted_sync_one']) && check_admin_referer('arted_github_sync')) {
         $file = sanitize_text_field($_POST['arted_sync_file'] ?? '');
         if ($file && isset($map[$file])) {
             $results[$file] = arted_github_sync_one($file, $map[$file]);
+            $resave_result  = arted_wpcode_resave($map[$file], '');
         }
+    }
+
+    if (isset($_POST['arted_rebuild_cache']) && check_admin_referer('arted_github_sync')) {
+        $resave_result = arted_wpcode_resave(0, '');
     }
 
     if (isset($_POST['arted_inspect']) && check_admin_referer('arted_github_sync')) {
@@ -416,6 +382,13 @@ function arted_github_sync_page() {
         </div>
         <?php endif; ?>
 
+        <?php if ($resave_result): ?>
+        <div style="background:#f6f7f7;border:1px solid #c3c4c7;padding:8px 12px;margin-bottom:16px;border-radius:3px;font-size:12px">
+            Кэш WPCode: <?= $resave_result['ok'] ? '✅' : '⚠️' ?>
+            <span style="color:#666"><?= esc_html($resave_result['methods'] ?? '') ?></span>
+        </div>
+        <?php endif; ?>
+
         <?php if ($inspect): ?>
         <div style="background:#f0f0f0;border:1px solid #ccc;padding:16px;margin-bottom:20px;border-radius:4px">
             <h3 style="margin:0 0 12px">🔍 Диагностика сниппета #<?= (int)$inspect['id'] ?></h3>
@@ -436,10 +409,13 @@ function arted_github_sync_page() {
         </div>
         <?php endif; ?>
 
-        <form method="post" style="margin-bottom:20px">
+        <form method="post" style="margin-bottom:20px;display:flex;gap:8px;align-items:center">
             <?php wp_nonce_field('arted_github_sync'); ?>
             <button name="arted_sync_all" value="1" class="button button-primary button-large">
                 ↓ Синхронизировать всё с GitHub
+            </button>
+            <button name="arted_rebuild_cache" value="1" class="button button-large">
+                ♻ Сбросить кэш WPCode
             </button>
         </form>
 
