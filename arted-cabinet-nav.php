@@ -320,8 +320,110 @@ function arted_tab_orders() {
     echo '</div>';
 }
 
-function arted_tab_payouts()  { echo '<div class="arted-tab-content"><p>Выплаты — в разработке</p></div>'; }
-function arted_tab_messages() { echo '<div class="arted-tab-content"><p>Сообщения — в разработке</p></div>'; }
+function arted_tab_payouts() { echo '<div class="arted-tab-content"><p>Выплаты — в разработке</p></div>'; }
+
+function arted_tab_messages() {
+    $user_id  = get_current_user_id();
+    $lang     = function_exists('arted_get_lang') ? arted_get_lang() : 'ru';
+    $messages = get_user_meta($user_id, 'arted_messages', true) ?: [];
+
+    $t = [
+        'ru' => ['title' => 'Сообщения', 'empty' => 'Сообщений пока нет', 'from' => 'Галерея'],
+        'en' => ['title' => 'Messages',  'empty' => 'No messages yet',     'from' => 'Gallery'],
+        'fr' => ['title' => 'Messages',  'empty' => 'Aucun message',        'from' => 'Galerie'],
+    ];
+    $l = $t[$lang] ?? $t['ru'];
+
+    // Помечаем все прочитанными
+    $has_unread = false;
+    foreach ($messages as &$msg) {
+        if (empty($msg['read'])) { $msg['read'] = true; $has_unread = true; }
+    }
+    unset($msg);
+    if ($has_unread) {
+        update_user_meta($user_id, 'arted_messages', $messages);
+        update_user_meta($user_id, 'arted_unread_messages', 0);
+    }
+
+    echo '<div class="arted-tab-content">';
+    echo '<h2 class="arted-works-title">' . esc_html($l['title']) . '</h2>';
+
+    if (empty($messages)) {
+        echo '<div class="arted-works-empty"><p>' . esc_html($l['empty']) . '</p></div>';
+    } else {
+        echo '<div class="arted-messages-list">';
+        foreach (array_reverse($messages) as $msg) {
+            echo '<div class="arted-message">';
+            echo '<div class="arted-message-meta">';
+            echo '<span class="arted-message-from">' . esc_html($l['from']) . '</span>';
+            echo '<span class="arted-message-date">' . esc_html(date_i18n('d.m.Y H:i', strtotime($msg['date']))) . '</span>';
+            echo '</div>';
+            echo '<div class="arted-message-text">' . nl2br(esc_html($msg['text'])) . '</div>';
+            echo '</div>';
+        }
+        echo '</div>';
+    }
+    echo '</div>';
+}
+
+// ── Отправка сообщения со страницы пользователя в WP Admin ───────────────
+add_action('edit_user_profile',        'arted_admin_messages_section');
+add_action('show_user_profile',        'arted_admin_messages_section');
+add_action('edit_user_profile_update', 'arted_admin_messages_save');
+add_action('personal_options_update',  'arted_admin_messages_save');
+
+function arted_admin_messages_section($user) {
+    if (!current_user_can('manage_options')) return;
+    if (!in_array('artist', (array) $user->roles)) return;
+
+    $messages = get_user_meta($user->ID, 'arted_messages', true) ?: [];
+    ?>
+    <h2>Сообщения художнику</h2>
+    <table class="form-table">
+        <tr>
+            <th><label for="arted_new_message">Новое сообщение</label></th>
+            <td>
+                <?php wp_nonce_field('arted_send_message_' . $user->ID, 'arted_message_nonce'); ?>
+                <textarea id="arted_new_message" name="arted_new_message" rows="4" class="large-text"></textarea>
+                <p class="description">Сообщение появится во вкладке «Сообщения» в кабинете художника.</p>
+            </td>
+        </tr>
+        <?php if ($messages): ?>
+        <tr>
+            <th>История</th>
+            <td>
+                <?php foreach (array_reverse($messages) as $msg): ?>
+                <div style="margin-bottom:12px;padding:10px 14px;background:#f6f7f7;border-left:3px solid #2271b1;border-radius:2px">
+                    <div style="font-size:11px;color:#888;margin-bottom:4px"><?= esc_html(date_i18n('d.m.Y H:i', strtotime($msg['date']))) ?> · <?= $msg['read'] ? 'прочитано' : '<b>не прочитано</b>' ?></div>
+                    <div><?= nl2br(esc_html($msg['text'])) ?></div>
+                </div>
+                <?php endforeach; ?>
+            </td>
+        </tr>
+        <?php endif; ?>
+    </table>
+    <?php
+}
+
+function arted_admin_messages_save($user_id) {
+    if (!current_user_can('manage_options')) return;
+    if (!check_admin_referer('arted_send_message_' . $user_id, 'arted_message_nonce')) return;
+
+    $text = trim(sanitize_textarea_field($_POST['arted_new_message'] ?? ''));
+    if ($text === '') return;
+
+    $messages = get_user_meta($user_id, 'arted_messages', true) ?: [];
+    $messages[] = [
+        'id'   => uniqid('msg_'),
+        'text' => $text,
+        'date' => current_time('mysql'),
+        'read' => false,
+    ];
+    update_user_meta($user_id, 'arted_messages', $messages);
+
+    $unread = (int) get_user_meta($user_id, 'arted_unread_messages', true);
+    update_user_meta($user_id, 'arted_unread_messages', $unread + 1);
+}
 
 // ── Горизонтальная навигация ──────────────────────────────────────────────
 add_action('woocommerce_before_account_navigation', function() {

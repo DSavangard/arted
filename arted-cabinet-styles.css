@@ -619,3 +619,45 @@ body.dark-theme {
     font-weight: 500;
 }
 
+/* ── Сообщения ────────────────────────────────────────── */
+.arted-messages-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.arted-message {
+    background: var(--cab-surface);
+    border: 1px solid var(--cab-border);
+    border-left: 3px solid var(--cab-accent);
+    border-radius: 6px;
+    padding: 14px 18px;
+}
+
+.arted-message-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.arted-message-from {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cab-accent);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.arted-message-date {
+    font-size: 12px;
+    color: var(--cab-text-muted);
+}
+
+.arted-message-text {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--cab-text);
+}
+
