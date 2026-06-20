@@ -76,10 +76,19 @@ function arted_wpcode_resave($post_id, $code) {
     $methods    = [];
     $trigger_id = 3137;
 
-    // wp_update_post (в отличие от $wpdb->update) проходит через полный
-    // WordPress-пайплайн: transition_post_status → save_post → save_post_wpcode.
-    // WPCode слушает именно эти хуки и только через них чистит свой кэш.
-    // Trigger-сниппет содержит только "// sync trigger" — kses ничего не срежет.
+    // Сначала сбрасываем объектный кэш — иначе WPCode при пересборке возьмёт
+    // старые сниппеты из памяти, а не свежие из БД.
+    wp_cache_flush();
+    $methods[] = 'wp_cache_flush';
+
+    if (function_exists('opcache_reset')) {
+        @opcache_reset();
+        $methods[] = 'opcache_reset';
+    }
+
+    // wp_update_post проходит через полный WP-пайплайн (transition_post_status →
+    // save_post → save_post_wpcode) — именно так WPCode получает сигнал пересобрать кэш.
+    // После flush выше WPCode вынужден читать сниппеты из БД, где уже новый контент.
     $r1 = wp_update_post(['ID' => $trigger_id, 'post_status' => 'draft'],   true);
     $r2 = wp_update_post(['ID' => $trigger_id, 'post_status' => 'publish'], true);
 
@@ -88,14 +97,6 @@ function arted_wpcode_resave($post_id, $code) {
     } else {
         $err = is_wp_error($r1) ? $r1->get_error_message() : $r2->get_error_message();
         $methods[] = 'wp_update_post_err:' . $err;
-    }
-
-    wp_cache_flush();
-    $methods[] = 'wp_cache_flush';
-
-    if (function_exists('opcache_reset')) {
-        @opcache_reset();
-        $methods[] = 'opcache_reset';
     }
 
     return ['ok' => !is_wp_error($r1) && !is_wp_error($r2), 'methods' => implode(', ', $methods)];
