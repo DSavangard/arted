@@ -71,42 +71,48 @@ function arted_github_fetch($filename) {
 //                                    (WPCode перехватывает запись или хранит не в post_content)
 //   UPDATED                        — успешно обновлено (ok=true)
 
-// Сбрасывает кэш WPCode. WPCode хранит все активные сниппеты в file_cache под
-// ключом 'active' (не по post_id). После $wpdb->update() нужно удалить именно этот ключ —
-// тогда при следующем запросе WPCode перечитает все сниппеты из БД заново.
 function arted_wpcode_resave($post_id, $code) {
-    $deleted = [];
+    global $wpdb;
+    $methods = [];
 
+    // 1. Удаляем WPCode transients из wp_options
+    $deleted = (int) $wpdb->query(
+        "DELETE FROM {$wpdb->options}
+         WHERE option_name LIKE '_transient_wpcode%'
+            OR option_name LIKE '_transient_timeout_wpcode%'
+            OR option_name LIKE '_site_transient_wpcode%'
+            OR option_name LIKE '_site_transient_timeout_wpcode%'"
+    );
+    $methods[] = "transients:{$deleted}";
+
+    // 2. file_cache — пробуем все возможные ключи
     if (function_exists('wpcode') && is_object(wpcode()) && isset(wpcode()->file_cache)) {
         $fc = wpcode()->file_cache;
         if (method_exists($fc, 'delete')) {
-            // Пробуем все возможные ключи общего кэша сниппетов
-            foreach (['active', 'snippets', 'all', 'php', 'enabled', 'wpcode'] as $key) {
-                $before = method_exists($fc, 'get') ? $fc->get($key) : false;
+            foreach (['active', 'snippets', 'all', 'php', 'enabled', 'wpcode', $post_id] as $key) {
                 $fc->delete($key);
-                $after  = method_exists($fc, 'get') ? $fc->get($key) : false;
-                if ($before !== false || $after !== $before) {
-                    $deleted[] = $key . '(' . strlen((string)$before) . 'b)';
-                }
             }
-            // Также по post_id на всякий случай
-            $fc->delete($post_id);
+            $methods[] = 'file_cache::delete';
         }
     }
 
+    // 3. WordPress object cache (включая Redis/Memcached)
     clean_post_cache($post_id);
+    wp_cache_flush();
+    $methods[] = 'wp_cache_flush';
 
-    if (function_exists('opcache_reset')) @opcache_reset();
-
-    // LiteSpeed Cache
-    do_action('litespeed_purge_all');
-    if (class_exists('\LiteSpeed\Purge') && method_exists('\LiteSpeed\Purge', 'purge_all')) {
-        \LiteSpeed\Purge::purge_all();
+    // 4. OPcache
+    if (function_exists('opcache_reset')) {
+        @opcache_reset();
+        $methods[] = 'opcache_reset';
     }
+
+    // 5. LiteSpeed Cache
+    do_action('litespeed_purge_all');
 
     return [
         'ok'      => true,
-        'methods' => 'file_cache::delete keys=[' . (implode(',', $deleted) ?: 'none found') . '] + opcache_reset + litespeed_purge',
+        'methods' => implode(', ', $methods),
     ];
 }
 
