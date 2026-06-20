@@ -111,15 +111,17 @@ function arted_github_sync_one($filename, $post_id) {
 
     $new_content = $fetch['body'];
 
-    // Читаем текущее содержимое ДО обновления
-    $current = $wpdb->get_var($wpdb->prepare(
-        "SELECT post_content FROM {$wpdb->posts} WHERE ID = %d",
+    // Проверяем существование поста и читаем текущий контент
+    $row = $wpdb->get_row($wpdb->prepare(
+        "SELECT ID, post_content FROM {$wpdb->posts} WHERE ID = %d",
         (int) $post_id
     ));
 
-    if ($current === null) {
+    if (!$row) {
         return ['ok' => false, 'code' => 'POST_NOT_FOUND', 'error' => 'POST_NOT_FOUND: сниппет #' . $post_id . ' отсутствует в БД'];
     }
+
+    $current = $row->post_content ?? '';
 
     // Нормализуем как WPCode: unix-переносы, без trailing whitespace
     $current     = rtrim(str_replace("\r\n", "\n", $current));
