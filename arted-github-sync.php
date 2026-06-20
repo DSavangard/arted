@@ -86,14 +86,26 @@ function arted_wpcode_resave($post_id, $code) {
     );
     $methods[] = "transients:{$deleted}";
 
-    // 2. file_cache — пробуем все возможные ключи
+    // 2. Удаляем ВСЕ файлы кэша WPCode напрямую через Reflection
+    // (file_cache->delete использует md5($key) для имён файлов — угадать ключ невозможно)
     if (function_exists('wpcode') && is_object(wpcode()) && isset(wpcode()->file_cache)) {
-        $fc = wpcode()->file_cache;
-        if (method_exists($fc, 'delete')) {
-            foreach (['active', 'snippets', 'all', 'php', 'enabled', 'wpcode', $post_id] as $key) {
-                $fc->delete($key);
+        try {
+            $ref = new ReflectionClass(wpcode()->file_cache);
+            foreach ($ref->getProperties() as $prop) {
+                $prop->setAccessible(true);
+                $val = $prop->getValue(wpcode()->file_cache);
+                if (is_string($val) && is_dir($val) && strpos($val, WP_CONTENT_DIR) !== false) {
+                    $files = array_merge(glob(rtrim($val, '/') . '/*.php') ?: [], glob(rtrim($val, '/') . '/*.json') ?: []);
+                    foreach ($files as $f) {
+                        @unlink($f);
+                        if (function_exists('opcache_invalidate')) opcache_invalidate($f, true);
+                    }
+                    $methods[] = 'cache_dir:' . count($files) . '_files_deleted';
+                    break;
+                }
             }
-            $methods[] = 'file_cache::delete';
+        } catch (Exception $e) {
+            $methods[] = 'reflection_err:' . $e->getMessage();
         }
     }
 
