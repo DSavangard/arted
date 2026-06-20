@@ -138,38 +138,27 @@ function arted_github_sync_one($filename, $post_id) {
     clean_post_cache($post_id);
     wp_cache_flush();
 
-    // Удаляем WPCode-транзиенты из options (на случай старых версий)
+    // Удаляем WPCode-транзиенты
     $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_wpcode%' OR option_name LIKE '_transient_timeout_wpcode%'");
 
-    // Стреляем save_post чтобы WPCode пересобрал compiled-кэш.
-    // $wpdb->update() обходит хуки — WPCode не узнаёт об изменении без этого.
-    $updated_post = get_post($post_id);
-    if ($updated_post) {
-        do_action('save_post',                         $post_id, $updated_post, true);
-        do_action('save_post_' . $updated_post->post_type, $post_id, $updated_post, true);
-    }
-
-    // Очищаем WPCode кэши через API
+    // Шаг 1: удаляем старый файловый кэш ДО того как стрелять save_post.
+    // Иначе save_post пересобирает правильный кэш, а мы его потом сносим.
     $files_deleted = 0;
     if (function_exists('wpcode') && is_object(wpcode())) {
-        $wpcode = wpcode();
+        $wpcode_obj = wpcode();
 
-        // WPCode_Snippet_Cache
-        if (isset($wpcode->cache) && method_exists($wpcode->cache, 'delete_all')) {
-            $wpcode->cache->delete_all();
+        if (isset($wpcode_obj->cache) && method_exists($wpcode_obj->cache, 'delete_all')) {
+            $wpcode_obj->cache->delete_all();
         }
 
-        // WPCode_File_Cache: методы set/get/delete — нет delete_all.
-        // Удаляем конкретный файл по ключу + ищем директорию через Reflection.
-        if (isset($wpcode->file_cache)) {
-            $fc = $wpcode->file_cache;
+        if (isset($wpcode_obj->file_cache)) {
+            $fc = $wpcode_obj->file_cache;
 
             if (method_exists($fc, 'delete')) {
                 $fc->delete($post_id);
                 $fc->delete((string) $post_id);
             }
 
-            // Ищем все string-свойства, которые указывают на существующую директорию
             try {
                 $ref = new ReflectionClass($fc);
                 foreach ($ref->getProperties() as $prop) {
@@ -183,7 +172,13 @@ function arted_github_sync_one($filename, $post_id) {
                 }
             } catch (Throwable $e) {}
         }
+    }
 
+    // Шаг 2: save_post — WPCode читает новый post_content из БД и пишет правильный кэш
+    $updated_post = get_post($post_id);
+    if ($updated_post) {
+        do_action('save_post', $post_id, $updated_post, true);
+        do_action('save_post_' . $updated_post->post_type, $post_id, $updated_post, true);
         do_action('wpcode_cache_cleared');
     }
 
