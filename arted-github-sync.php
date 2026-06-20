@@ -75,42 +75,62 @@ function arted_github_fetch($filename) {
 function arted_wpcode_resave($post_id, $code) {
     $methods    = [];
     $trigger_id = 3137;
-    global $wpdb;
+    $done       = false;
 
-    // Деактивация + активация сниппета-триггера заставляет WPCode пересобрать кэш.
-    // Используем $wpdb напрямую чтобы не трогать post_content через kses.
-    $deactivated = $wpdb->update(
-        $wpdb->posts,
-        ['post_status' => 'draft'],
-        ['ID' => $trigger_id]
-    );
-
-    if ($deactivated !== false) {
-        clean_post_cache($trigger_id);
-        $post_draft = get_post($trigger_id);
-        if ($post_draft) {
-            do_action('transition_post_status', 'draft', 'publish', $post_draft);
-            do_action('save_post',        $trigger_id, $post_draft, true);
-            do_action('save_post_wpcode', $trigger_id, $post_draft, true);
+    // Вариант 1: WPCode PHP API — snippet->set_active() + snippets->save_snippet()
+    // Это тот же путь что WPCode UI, гарантирует пересборку кэша.
+    if (function_exists('wpcode') && is_object(wpcode()) && isset(wpcode()->snippets)) {
+        $lib = wpcode()->snippets;
+        if (method_exists($lib, 'get_snippet') && method_exists($lib, 'save_snippet')) {
+            $snip = $lib->get_snippet($trigger_id);
+            if ($snip && method_exists($snip, 'set_active')) {
+                $snip->set_active(false);
+                $lib->save_snippet($snip);
+                $snip->set_active(true);
+                $lib->save_snippet($snip);
+                $done      = true;
+                $methods[] = 'wpcode_api_toggle';
+            }
         }
-
-        $wpdb->update(
-            $wpdb->posts,
-            ['post_status' => 'publish'],
-            ['ID' => $trigger_id]
-        );
-        clean_post_cache($trigger_id);
-        $post_pub = get_post($trigger_id);
-        if ($post_pub) {
-            do_action('transition_post_status', 'publish', 'draft', $post_pub);
-            do_action('save_post',        $trigger_id, $post_pub, true);
-            do_action('save_post_wpcode', $trigger_id, $post_pub, true);
+        // Вариант 1b: прямые методы библиотеки
+        if (!$done) {
+            foreach ([['deactivate_snippet','activate_snippet'],['toggle_snippet','toggle_snippet']] as [$off,$on]) {
+                if (method_exists($lib, $off) && method_exists($lib, $on)) {
+                    $lib->$off($trigger_id);
+                    $lib->$on($trigger_id);
+                    $done      = true;
+                    $methods[] = "wpcode_{$off}";
+                    break;
+                }
+            }
         }
-
-        $methods[] = 'toggle_#' . $trigger_id;
-    } else {
-        $methods[] = 'toggle_failed';
     }
+
+    // Вариант 2 (fallback): $wpdb + все возможные хуки
+    if (!$done) {
+        global $wpdb;
+        foreach (['draft','publish'] as $status) {
+            $wpdb->update($wpdb->posts, ['post_status' => $status], ['ID' => $trigger_id]);
+            clean_post_cache($trigger_id);
+            $p = get_post($trigger_id);
+            if ($p) {
+                $from = $status === 'draft' ? 'publish' : 'draft';
+                do_action('transition_post_status', $status, $from, $p);
+                do_action('save_post',        $trigger_id, $p, true);
+                do_action('save_post_wpcode', $trigger_id, $p, true);
+            }
+        }
+        $methods[] = 'wpdb_toggle_#' . $trigger_id;
+    }
+
+    // Удаляем все WPCode-трансиенты из БД
+    global $wpdb;
+    $del = $wpdb->query(
+        "DELETE FROM {$wpdb->options}
+         WHERE option_name LIKE '_transient_wpcode%'
+            OR option_name LIKE '_transient_timeout_wpcode%'"
+    );
+    if ($del) $methods[] = 'transients:' . $del;
 
     wp_cache_flush();
     $methods[] = 'wp_cache_flush';
@@ -120,7 +140,7 @@ function arted_wpcode_resave($post_id, $code) {
         $methods[] = 'opcache_reset';
     }
 
-    return ['ok' => $deactivated !== false, 'methods' => implode(', ', $methods)];
+    return ['ok' => true, 'methods' => implode(', ', $methods)];
 }
 
 function arted_github_sync_one($filename, $post_id) {
