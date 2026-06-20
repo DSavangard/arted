@@ -175,7 +175,7 @@ function arted_tab_orders() {
     $t = [
         'ru' => [
             'title'      => 'Заказы',
-            'empty'      => 'Заказов пока нет',
+            'empty'      => 'Заказов нет',
             'col_date'   => 'Дата',
             'col_order'  => '№ заказа',
             'col_work'   => 'Работа',
