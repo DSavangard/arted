@@ -185,9 +185,72 @@ function arted_github_sync_one($filename, $post_id) {
     ];
 }
 
+function arted_inspect_snippet($post_id) {
+    global $wpdb;
+    $post_id = (int) $post_id;
+    $out = [];
+
+    $post = get_post($post_id);
+    if (!$post) return ['error' => 'Post #' . $post_id . ' not found'];
+
+    $out['post_type']    = $post->post_type;
+    $out['post_status']  = $post->post_status;
+    $out['post_title']   = $post->post_title;
+    $out['post_content_len']    = strlen($post->post_content);
+    $out['post_content_preview'] = substr($post->post_content, 0, 200);
+
+    // Все post_meta для этого сниппета
+    $meta_rows = $wpdb->get_results($wpdb->prepare(
+        "SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = %d ORDER BY meta_key",
+        $post_id
+    ));
+    $meta = [];
+    foreach ($meta_rows as $m) {
+        $val = $m->meta_value;
+        $meta[$m->meta_key] = strlen($val) > 200 ? substr($val, 0, 200) . '…[' . strlen($val) . ' bytes]' : $val;
+    }
+    $out['post_meta'] = $meta;
+
+    // WPCode API
+    $out['wpcode_function_exists'] = function_exists('wpcode');
+    if (function_exists('wpcode') && is_object(wpcode())) {
+        $wpcode = wpcode();
+        $out['wpcode_classes'] = array_filter(get_object_vars($wpcode), fn($v) => is_object($v));
+        $out['wpcode_classes'] = array_map('get_class', $out['wpcode_classes']);
+
+        // Пробуем получить сниппет через API
+        if (isset($wpcode->snippets) && method_exists($wpcode->snippets, 'get_snippet')) {
+            $snippet = $wpcode->snippets->get_snippet($post_id);
+            if ($snippet) {
+                $out['wpcode_snippet_class'] = get_class($snippet);
+                $out['wpcode_snippet_methods'] = array_values(array_filter(
+                    get_class_methods($snippet),
+                    fn($m) => strpos($m, 'get_') === 0 || strpos($m, 'set_') === 0
+                ));
+                if (method_exists($snippet, 'get_code')) {
+                    $code = $snippet->get_code();
+                    $out['wpcode_snippet_get_code_len']     = strlen($code ?? '');
+                    $out['wpcode_snippet_get_code_preview'] = substr($code ?? '', 0, 200);
+                }
+            }
+        }
+    }
+
+    // Кастомные таблицы WPCode
+    $tables = $wpdb->get_col("SHOW TABLES LIKE '%wpcode%'");
+    $out['wpcode_tables'] = $tables;
+    foreach ($tables as $table) {
+        $cols = $wpdb->get_col("DESCRIBE `{$table}`");
+        $out['table_' . $table] = $cols;
+    }
+
+    return $out;
+}
+
 function arted_github_sync_page() {
     $map     = arted_github_snippet_map();
     $results = [];
+    $inspect = null;
 
     if (isset($_POST['arted_sync_all']) && check_admin_referer('arted_github_sync')) {
         foreach ($map as $file => $id) {
@@ -199,6 +262,13 @@ function arted_github_sync_page() {
         $file = sanitize_text_field($_POST['arted_sync_file'] ?? '');
         if ($file && isset($map[$file])) {
             $results[$file] = arted_github_sync_one($file, $map[$file]);
+        }
+    }
+
+    if (isset($_POST['arted_inspect']) && check_admin_referer('arted_github_sync')) {
+        $inspect_id = (int)($_POST['arted_inspect_id'] ?? 0);
+        if ($inspect_id) {
+            $inspect = ['id' => $inspect_id, 'data' => arted_inspect_snippet($inspect_id)];
         }
     }
 
@@ -262,6 +332,26 @@ function arted_github_sync_page() {
         </div>
         <?php endif; ?>
 
+        <?php if ($inspect): ?>
+        <div style="background:#f0f0f0;border:1px solid #ccc;padding:16px;margin-bottom:20px;border-radius:4px">
+            <h3 style="margin:0 0 12px">🔍 Диагностика сниппета #<?= (int)$inspect['id'] ?></h3>
+            <table style="border-collapse:collapse;font-size:12px;width:100%">
+            <?php foreach ($inspect['data'] as $key => $val): ?>
+                <tr>
+                    <td style="padding:4px 12px 4px 0;font-weight:600;white-space:nowrap;vertical-align:top;color:#555"><?= esc_html($key) ?></td>
+                    <td style="padding:4px 0;word-break:break-all">
+                        <?php if (is_array($val)): ?>
+                            <pre style="margin:0;font-size:11px;background:#fff;padding:6px;border-radius:3px;overflow:auto;max-height:200px"><?= esc_html(print_r($val, true)) ?></pre>
+                        <?php else: ?>
+                            <code style="font-size:11px"><?= esc_html((string)$val) ?></code>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </table>
+        </div>
+        <?php endif; ?>
+
         <form method="post" style="margin-bottom:20px">
             <?php wp_nonce_field('arted_github_sync'); ?>
             <button name="arted_sync_all" value="1" class="button button-primary button-large">
@@ -269,13 +359,13 @@ function arted_github_sync_page() {
             </button>
         </form>
 
-        <table class="wp-list-table widefat fixed striped" style="max-width:760px">
+        <table class="wp-list-table widefat fixed striped" style="max-width:860px">
             <thead>
                 <tr>
                     <th>Файл в GitHub</th>
                     <th>WPCode ID</th>
                     <th style="width:80px">Результат</th>
-                    <th style="width:110px"></th>
+                    <th style="width:170px"></th>
                 </tr>
             </thead>
             <tbody>
@@ -323,12 +413,19 @@ function arted_github_sync_page() {
                             </code>
                         <?php endif; ?>
                     </td>
-                    <td>
-                        <form method="post" style="margin:0">
+                    <td style="white-space:nowrap">
+                        <form method="post" style="margin:0;display:inline">
                             <?php wp_nonce_field('arted_github_sync'); ?>
                             <input type="hidden" name="arted_sync_file" value="<?= esc_attr($file) ?>">
                             <button name="arted_sync_one" value="1" class="button button-small" <?= !$exists ? 'disabled' : '' ?>>↓ Обновить</button>
                         </form>
+                        <?php if ($exists): ?>
+                        <form method="post" style="margin:0;display:inline;margin-left:4px">
+                            <?php wp_nonce_field('arted_github_sync'); ?>
+                            <input type="hidden" name="arted_inspect_id" value="<?= $id ?>">
+                            <button name="arted_inspect" value="1" class="button button-small" style="color:#666">🔍</button>
+                        </form>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
