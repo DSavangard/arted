@@ -98,41 +98,39 @@ function arted_cdek_calculate_rate($from_city, $to_city_code, $weight_g = 2000) 
 
 // ── WooCommerce Shipping Method ───────────────────────────────────────────
 
-add_filter('woocommerce_shipping_methods', function($methods) {
-    $methods['arted_cdek'] = 'Arted_CDEK_Shipping';
-    return $methods;
-});
+add_action('woocommerce_shipping_init', 'arted_cdek_register_shipping_class');
+function arted_cdek_register_shipping_class() {
+    if (class_exists('Arted_CDEK_Shipping')) return;
 
-if (!class_exists('Arted_CDEK_Shipping')) :
-class Arted_CDEK_Shipping extends WC_Shipping_Method {
+    class Arted_CDEK_Shipping extends WC_Shipping_Method {
 
-    public function __construct($instance_id = 0) {
-        $this->id                 = 'arted_cdek';
-        $this->instance_id        = absint($instance_id);
-        $this->method_title       = 'СДЭК (от художника)';
-        $this->method_description = 'Доставка до пункта СДЭК, расчёт от города художника';
-        $this->supports           = ['shipping-zones', 'instance-settings'];
-        $this->title              = 'Доставка СДЭК';
-        $this->init();
-    }
+        public function __construct($instance_id = 0) {
+            $this->id                 = 'arted_cdek';
+            $this->instance_id        = absint($instance_id);
+            $this->method_title       = 'СДЭК (от художника)';
+            $this->method_description = 'Доставка до пункта СДЭК, расчёт от города художника';
+            $this->supports           = ['shipping-zones', 'instance-settings'];
+            $this->title              = 'Доставка СДЭК';
+            $this->init();
+        }
 
-    public function init() {
-        $this->init_form_fields();
-        $this->init_settings();
-        add_action('woocommerce_update_options_shipping_' . $this->id, [$this, 'process_admin_options']);
-    }
+        public function init() {
+            $this->init_form_fields();
+            $this->init_settings();
+            add_action('woocommerce_update_options_shipping_' . $this->id, [$this, 'process_admin_options']);
+        }
 
-    public function init_form_fields() {
-        $this->form_fields = [
-            'title' => [
-                'title'   => 'Название',
-                'type'    => 'text',
-                'default' => 'Доставка СДЭК',
-            ],
-        ];
-    }
+        public function init_form_fields() {
+            $this->form_fields = [
+                'title' => [
+                    'title'   => 'Название',
+                    'type'    => 'text',
+                    'default' => 'Доставка СДЭК',
+                ],
+            ];
+        }
 
-    public function calculate_shipping($package = []) {
+        public function calculate_shipping($package = []) {
         // Город покупателя
         $to_city = $package['destination']['city'] ?? '';
         if (!$to_city) return;
@@ -174,8 +172,13 @@ class Arted_CDEK_Shipping extends WC_Shipping_Method {
             'cost'  => $total_cost,
         ]);
     }
-}
-endif;
+    } // end class Arted_CDEK_Shipping
+} // end arted_cdek_register_shipping_class
+
+add_filter('woocommerce_shipping_methods', function($methods) {
+    $methods['arted_cdek'] = 'Arted_CDEK_Shipping';
+    return $methods;
+});
 
 // ── Поле выбора ПВЗ на странице оформления заказа ────────────────────────
 
