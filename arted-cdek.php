@@ -156,6 +156,8 @@ class Arted_CDEK_Shipping extends WC_Shipping_Method {
             $to_city  = $package['destination']['city'] ?? '';
             $to_code  = $to_city ? arted_cdek_city_code($to_city) : null;
 
+            error_log("CDEK calc: to_city=$to_city to_code=$to_code");
+
             $total_cost   = 0.0;
             $artist_count = 0;
 
@@ -170,9 +172,8 @@ class Arted_CDEK_Shipping extends WC_Shipping_Method {
                     $artist_city = get_user_meta($author_id, 'arted_artist_city', true)
                         ?: get_user_meta($author_id, 'billing_city', true)
                         ?: get_user_meta($author_id, 'shipping_city', true);
-                    if (!$artist_city) continue;
-
-                    $rate = arted_cdek_calculate_rate($artist_city, $to_code);
+                    $rate = $artist_city ? arted_cdek_calculate_rate($artist_city, $to_code) : null;
+                    error_log("CDEK calc: author=$author_id artist_city=$artist_city rate=$rate");
                     if ($rate === null) continue;
 
                     $total_cost += $rate;
