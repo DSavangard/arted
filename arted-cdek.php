@@ -77,30 +77,39 @@ function arted_cdek_calculate_rate($from_city, $to_city_code, $weight_g = 2000) 
     if (!$token) return null;
     $cfg   = arted_cdek_settings();
 
-    $body = [
-        'tariff_code'   => 234,
-        'from_location' => ['code' => $from_code],
-        'to_location'   => ['code' => $to_city_code],
-        'packages'      => [[
-            'weight' => $weight_g,
-            'length' => 50,
-            'width'  => 40,
-            'height' => 5,
-        ]],
-    ];
+    // Пробуем тарифы по порядку: склад-склад, склад-ПВЗ, дверь-склад, дверь-ПВЗ
+    $tariffs = [136, 137, 138, 139];
 
-    $resp = wp_remote_post($cfg['api_base'] . '/calculator/tariff', [
-        'timeout' => 15,
-        'headers' => [
-            'Authorization' => 'Bearer ' . $token,
-            'Content-Type'  => 'application/json',
-        ],
-        'body' => wp_json_encode($body),
-    ]);
-    if (is_wp_error($resp)) return null;
-    $data = json_decode(wp_remote_retrieve_body($resp), true);
-    $sum = (float)($data['delivery_sum'] ?? $data['total_sum'] ?? 0);
-    return $sum > 0 ? $sum : null;
+    $packages = [[
+        'weight' => $weight_g,
+        'length' => 50,
+        'width'  => 40,
+        'height' => 5,
+    ]];
+
+    foreach ($tariffs as $tariff_code) {
+        $body = [
+            'tariff_code'   => $tariff_code,
+            'from_location' => ['code' => (int)$from_code],
+            'to_location'   => ['code' => (int)$to_city_code],
+            'packages'      => $packages,
+        ];
+
+        $resp = wp_remote_post($cfg['api_base'] . '/calculator/tariff', [
+            'timeout' => 15,
+            'headers' => [
+                'Authorization' => 'Bearer ' . $token,
+                'Content-Type'  => 'application/json',
+            ],
+            'body' => wp_json_encode($body),
+        ]);
+        if (is_wp_error($resp)) continue;
+        $data = json_decode(wp_remote_retrieve_body($resp), true);
+        $sum  = (float)($data['delivery_sum'] ?? $data['total_sum'] ?? 0);
+        if ($sum > 0) return $sum;
+    }
+
+    return null;
 }
 endif;
 

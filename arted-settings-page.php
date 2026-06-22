@@ -126,7 +126,7 @@ function arted_settings_page() {
                         echo '✅ ' . $rate . ' ₽';
                     } else {
                         $body = [
-                            'tariff_code'   => 234,
+                            'tariff_code'   => 136,
                             'from_location' => ['code' => $city_code],
                             'to_location'   => ['code' => $city_code],
                             'packages'      => [['weight' => 2000, 'length' => 50, 'width' => 40, 'height' => 5]],
