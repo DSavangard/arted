@@ -298,6 +298,60 @@ add_action('admin_notices', function() {
     echo '</p></div>';
 });
 
+// Поле быстрой смены города под строкой доставки
+add_action('woocommerce_review_order_after_shipping', function() {
+    $chosen = WC()->session ? WC()->session->get('chosen_shipping_methods') : [];
+    if (!$chosen || strpos(implode(',', $chosen), 'arted_cdek') === false) return;
+
+    $city = WC()->customer ? (WC()->customer->get_shipping_city() ?: WC()->customer->get_billing_city()) : '';
+    ?>
+    <tr class="arted-cdek-city-row">
+        <th style="padding:4px 0 8px;font-size:12px;font-weight:400;color:#888">Город доставки</th>
+        <td style="padding:4px 0 8px">
+            <div style="display:flex;gap:6px;align-items:center">
+                <input type="text" id="arted_cdek_city_quick" value="<?= esc_attr($city) ?>"
+                       placeholder="Введите город"
+                       style="flex:1;padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px">
+                <button type="button" id="arted_cdek_city_apply"
+                        style="padding:5px 10px;background:#222;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;white-space:nowrap">
+                    Рассчитать
+                </button>
+            </div>
+        </td>
+    </tr>
+    <script>
+    (function() {
+        var input = document.getElementById('arted_cdek_city_quick');
+        var btn   = document.getElementById('arted_cdek_city_apply');
+        if (!input || !btn) return;
+
+        function applyCity() {
+            var city = input.value.trim();
+            if (!city) return;
+            // Обновляем основные поля города в форме
+            var fields = ['#billing_city', '#shipping_city', '[name="billing_city"]', '[name="shipping_city"]'];
+            fields.forEach(function(sel) {
+                var el = document.querySelector(sel);
+                if (el) el.value = city;
+            });
+            jQuery('body').trigger('update_checkout');
+        }
+
+        btn.addEventListener('click', applyCity);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); applyCity(); }
+        });
+
+        // Синхронизируем с основным полем города
+        jQuery(document.body).on('updated_checkout', function() {
+            var main = document.querySelector('#billing_city') || document.querySelector('[name="billing_city"]');
+            if (main && main.value && main.value !== input.value) input.value = main.value;
+        });
+    })();
+    </script>
+    <?php
+});
+
 add_action('woocommerce_review_order_before_payment', 'arted_cdek_pvz_field');
 
 // Сохраняем выбранный ПВЗ в сессию через AJAX
