@@ -144,36 +144,34 @@ class Arted_CDEK_Shipping extends WC_Shipping_Method {
         }
 
         public function calculate_shipping($package = []) {
-            $to_city = $package['destination']['city'] ?? '';
-            if (!$to_city) return;
-
-            $to_code = arted_cdek_city_code($to_city);
-            if (!$to_code) return;
-
-            $by_artist = [];
-            foreach ($package['contents'] as $item) {
-                $author_id = (int)get_post_field('post_author', $item['product_id']);
-                $by_artist[$author_id][] = $item;
-            }
+            $to_city  = $package['destination']['city'] ?? '';
+            $to_code  = $to_city ? arted_cdek_city_code($to_city) : null;
 
             $total_cost   = 0.0;
             $artist_count = 0;
 
-            foreach ($by_artist as $author_id => $items) {
-                $artist_city = get_user_meta($author_id, 'arted_artist_city', true)
-                    ?: get_user_meta($author_id, 'billing_city', true)
-                    ?: get_user_meta($author_id, 'shipping_city', true);
-                if (!$artist_city) continue;
+            if ($to_code) {
+                $by_artist = [];
+                foreach ($package['contents'] as $item) {
+                    $author_id = (int)get_post_field('post_author', $item['product_id']);
+                    $by_artist[$author_id][] = $item;
+                }
 
-                $rate = arted_cdek_calculate_rate($artist_city, $to_code);
-                if ($rate === null) continue;
+                foreach ($by_artist as $author_id => $items) {
+                    $artist_city = get_user_meta($author_id, 'arted_artist_city', true)
+                        ?: get_user_meta($author_id, 'billing_city', true)
+                        ?: get_user_meta($author_id, 'shipping_city', true);
+                    if (!$artist_city) continue;
 
-                $total_cost += $rate;
-                $artist_count++;
+                    $rate = arted_cdek_calculate_rate($artist_city, $to_code);
+                    if ($rate === null) continue;
+
+                    $total_cost += $rate;
+                    $artist_count++;
+                }
             }
 
             if ($artist_count === 0) {
-                // Фолбэк: город художника не задан или API недоступен
                 $this->add_rate([
                     'id'    => $this->get_rate_id(),
                     'label' => 'Доставка СДЭК (стоимость уточняется)',
