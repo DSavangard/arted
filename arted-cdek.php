@@ -159,7 +159,9 @@ class Arted_CDEK_Shipping extends WC_Shipping_Method {
             $artist_count = 0;
 
             foreach ($by_artist as $author_id => $items) {
-                $artist_city = get_user_meta($author_id, 'arted_artist_city', true);
+                $artist_city = get_user_meta($author_id, 'arted_artist_city', true)
+                    ?: get_user_meta($author_id, 'billing_city', true)
+                    ?: get_user_meta($author_id, 'shipping_city', true);
                 if (!$artist_city) continue;
 
                 $rate = arted_cdek_calculate_rate($artist_city, $to_code);
