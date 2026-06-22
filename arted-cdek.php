@@ -3,6 +3,7 @@
 
 // ── API-клиент ────────────────────────────────────────────────────────────
 
+if (!function_exists('arted_cdek_settings')) :
 function arted_cdek_settings() {
     $s = get_option('arted_settings', []);
     $test = !empty($s['cdek_test_mode']);
@@ -17,7 +18,9 @@ function arted_cdek_settings() {
             : 'https://api.cdek.ru',
     ];
 }
+endif;
 
+if (!function_exists('arted_cdek_token')) :
 function arted_cdek_token() {
     $cached = get_transient('arted_cdek_token');
     if ($cached) return $cached;
@@ -39,7 +42,9 @@ function arted_cdek_token() {
     set_transient('arted_cdek_token', $token, (int)($data['expires_in'] ?? 3600) - 60);
     return $token;
 }
+endif;
 
+if (!function_exists('arted_cdek_city_code')) :
 function arted_cdek_city_code($city_name) {
     if (!$city_name) return null;
     $key    = 'arted_cdek_city_' . md5($city_name);
@@ -61,8 +66,9 @@ function arted_cdek_city_code($city_name) {
     set_transient($key, $code ?: '', DAY_IN_SECONDS);
     return $code;
 }
+endif;
 
-// Рассчитать стоимость для одного отправления (дверь → ПВЗ, тариф 234)
+if (!function_exists('arted_cdek_calculate_rate')) :
 function arted_cdek_calculate_rate($from_city, $to_city_code, $weight_g = 2000) {
     $from_code = arted_cdek_city_code($from_city);
     if (!$from_code || !$to_city_code) return null;
@@ -72,7 +78,7 @@ function arted_cdek_calculate_rate($from_city, $to_city_code, $weight_g = 2000) 
     $cfg   = arted_cdek_settings();
 
     $body = [
-        'tariff_code'   => 234,   // Дверь → Склад (ПВЗ)
+        'tariff_code'   => 234,
         'from_location' => ['code' => $from_code],
         'to_location'   => ['code' => $to_city_code],
         'packages'      => [[
@@ -95,10 +101,11 @@ function arted_cdek_calculate_rate($from_city, $to_city_code, $weight_g = 2000) 
     $data = json_decode(wp_remote_retrieve_body($resp), true);
     return isset($data['total_sum']) ? (float)$data['total_sum'] : null;
 }
+endif;
 
 // ── WooCommerce Shipping Method ───────────────────────────────────────────
 
-add_action('woocommerce_shipping_init', 'arted_cdek_register_shipping_class');
+if (!function_exists('arted_cdek_register_shipping_class')) :
 function arted_cdek_register_shipping_class() {
     if (class_exists('Arted_CDEK_Shipping')) return;
 
@@ -131,49 +138,49 @@ function arted_cdek_register_shipping_class() {
         }
 
         public function calculate_shipping($package = []) {
-        // Город покупателя
-        $to_city = $package['destination']['city'] ?? '';
-        if (!$to_city) return;
+            $to_city = $package['destination']['city'] ?? '';
+            if (!$to_city) return;
 
-        $to_code = arted_cdek_city_code($to_city);
-        if (!$to_code) return;
+            $to_code = arted_cdek_city_code($to_city);
+            if (!$to_code) return;
 
-        // Группируем товары по художнику
-        $by_artist = [];
-        foreach ($package['contents'] as $item) {
-            $author_id = (int)get_post_field('post_author', $item['product_id']);
-            $by_artist[$author_id][] = $item;
+            $by_artist = [];
+            foreach ($package['contents'] as $item) {
+                $author_id = (int)get_post_field('post_author', $item['product_id']);
+                $by_artist[$author_id][] = $item;
+            }
+
+            $total_cost   = 0.0;
+            $artist_count = 0;
+
+            foreach ($by_artist as $author_id => $items) {
+                $artist_city = get_user_meta($author_id, 'arted_artist_city', true);
+                if (!$artist_city) continue;
+
+                $rate = arted_cdek_calculate_rate($artist_city, $to_code);
+                if ($rate === null) continue;
+
+                $total_cost += $rate;
+                $artist_count++;
+            }
+
+            if ($artist_count === 0) return;
+
+            $label = $artist_count > 1
+                ? "Доставка СДЭК ({$artist_count} отправления)"
+                : 'Доставка СДЭК до ПВЗ';
+
+            $this->add_rate([
+                'id'    => $this->get_rate_id(),
+                'label' => $label,
+                'cost'  => $total_cost,
+            ]);
         }
-
-        $total_cost   = 0.0;
-        $artist_count = 0;
-        $errors       = 0;
-
-        foreach ($by_artist as $author_id => $items) {
-            $artist_city = get_user_meta($author_id, 'arted_artist_city', true);
-            if (!$artist_city) { $errors++; continue; }
-
-            $rate = arted_cdek_calculate_rate($artist_city, $to_code);
-            if ($rate === null) { $errors++; continue; }
-
-            $total_cost += $rate;
-            $artist_count++;
-        }
-
-        if ($artist_count === 0) return;
-
-        $label = $artist_count > 1
-            ? "Доставка СДЭК ({$artist_count} отправления)"
-            : 'Доставка СДЭК до ПВЗ';
-
-        $this->add_rate([
-            'id'    => $this->get_rate_id(),
-            'label' => $label,
-            'cost'  => $total_cost,
-        ]);
     }
-    } // end class Arted_CDEK_Shipping
-} // end arted_cdek_register_shipping_class
+}
+endif;
+
+add_action('woocommerce_shipping_init', 'arted_cdek_register_shipping_class');
 
 add_filter('woocommerce_shipping_methods', function($methods) {
     $methods['arted_cdek'] = 'Arted_CDEK_Shipping';
@@ -182,18 +189,14 @@ add_filter('woocommerce_shipping_methods', function($methods) {
 
 // ── Поле выбора ПВЗ на странице оформления заказа ────────────────────────
 
-// Добавляем поле выбора ПВЗ когда выбран наш метод доставки
-add_action('woocommerce_review_order_before_payment', 'arted_cdek_pvz_field');
-
+if (!function_exists('arted_cdek_pvz_field')) :
 function arted_cdek_pvz_field() {
     $chosen = WC()->session ? WC()->session->get('chosen_shipping_methods') : [];
     if (!$chosen || strpos(implode(',', $chosen), 'arted_cdek') === false) return;
 
     $cfg = arted_cdek_settings();
     $to_city = WC()->customer ? WC()->customer->get_shipping_city() : '';
-    $to_code = $to_city ? (arted_cdek_city_code($to_city) ?? '') : '';
 
-    // Город отправителя из первого товара в корзине
     $from_city = '';
     foreach (WC()->cart->get_cart() as $item) {
         $aid = (int)get_post_field('post_author', $item['product_id']);
@@ -247,7 +250,6 @@ function arted_cdek_pvz_field() {
                     }
                     sel.innerHTML = '<strong>Выбран ПВЗ:</strong> ' + (address.address || '') +
                         ' <button type="button" onclick="document.getElementById(\'arted-cdek-map-wrap\').style.display=\'block\'" style="margin-left:12px;font-size:12px;background:none;border:none;color:#2271b1;cursor:pointer;text-decoration:underline">изменить</button>';
-                    // Обновляем стоимость доставки
                     jQuery('body').trigger('update_checkout');
                 }
             });
@@ -257,9 +259,11 @@ function arted_cdek_pvz_field() {
     </script>
     <?php
 
-    // Подключаем виджет СДЭК
     wp_enqueue_script('cdek-widget', 'https://cdn.jsdelivr.net/npm/@cdek-it/widget@3', [], null, true);
 }
+endif;
+
+add_action('woocommerce_review_order_before_payment', 'arted_cdek_pvz_field');
 
 // Сохраняем выбранный ПВЗ в сессию через AJAX
 add_action('woocommerce_checkout_update_order_review', function($posted) {
@@ -289,7 +293,7 @@ add_action('woocommerce_checkout_create_order', function($order) {
     }
 });
 
-// Показываем ПВЗ в деталях заказа (admin + email)
+// Показываем ПВЗ в деталях заказа (admin)
 add_action('woocommerce_admin_order_data_after_shipping_address', function($order) {
     $code    = $order->get_meta('_cdek_pvz_code');
     $address = $order->get_meta('_cdek_pvz_address');
