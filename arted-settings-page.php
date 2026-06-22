@@ -55,6 +55,7 @@ function arted_field_github_token() {
 }
 
 function arted_settings_page() {
+    $cdek_test = isset($_GET['cdek_test']);
     ?>
     <div class="wrap">
         <h1>Настройки Gallery</h1>
@@ -63,6 +64,87 @@ function arted_settings_page() {
             <?php do_settings_sections('arted-settings'); ?>
             <?php submit_button(); ?>
         </form>
+
+        <hr>
+        <h2>Диагностика СДЭК API</h2>
+        <a href="<?= esc_url(add_query_arg(['page' => 'arted-settings', 'cdek_test' => 1], admin_url('admin.php'))) ?>"
+           class="button">Запустить тест API</a>
+
+        <?php if ($cdek_test && function_exists('arted_cdek_settings')): ?>
+        <div style="margin-top:16px;font-family:monospace;font-size:13px">
+            <?php
+            // Сбрасываем кэш токена для чистого теста
+            delete_transient('arted_cdek_token');
+
+            $cfg = arted_cdek_settings();
+            echo '<p><b>Режим:</b> ' . ($cfg['api_base'] === 'https://api.edu.cdek.ru/v2' ? 'тестовый' : 'боевой') . '</p>';
+            echo '<p><b>Client ID:</b> ' . esc_html($cfg['client_id'] ?: '❌ пусто') . '</p>';
+            echo '<p><b>API base:</b> ' . esc_html($cfg['api_base']) . '</p>';
+
+            // 1. Токен
+            $token = arted_cdek_token();
+            echo '<p><b>1. Токен:</b> ';
+            if ($token) {
+                echo '✅ получен (' . substr($token, 0, 20) . '...)';
+            } else {
+                // Повторный запрос для получения сырого ответа
+                $resp = wp_remote_post($cfg['api_base'] . '/oauth/token?parameters', [
+                    'timeout' => 15,
+                    'body'    => [
+                        'grant_type'    => 'client_credentials',
+                        'client_id'     => $cfg['client_id'],
+                        'client_secret' => $cfg['client_secret'],
+                    ],
+                ]);
+                $body = is_wp_error($resp) ? $resp->get_error_message() : wp_remote_retrieve_body($resp);
+                echo '❌ ошибка. Ответ: <code>' . esc_html($body) . '</code>';
+            }
+            echo '</p>';
+
+            if ($token) {
+                // 2. Поиск города
+                delete_transient('arted_cdek_city_' . md5('Москва'));
+                $city_code = arted_cdek_city_code('Москва');
+                echo '<p><b>2. Код города «Москва»:</b> ';
+                if ($city_code) {
+                    echo '✅ ' . esc_html($city_code);
+                } else {
+                    $resp = wp_remote_get(add_query_arg(['city' => 'Москва', 'size' => 1], $cfg['api_base'] . '/location/cities'), [
+                        'timeout' => 10,
+                        'headers' => ['Authorization' => 'Bearer ' . $token],
+                    ]);
+                    $body = is_wp_error($resp) ? $resp->get_error_message() : wp_remote_retrieve_body($resp);
+                    echo '❌ ошибка. Ответ: <code>' . esc_html(substr($body, 0, 300)) . '</code>';
+                }
+                echo '</p>';
+
+                // 3. Расчёт тарифа
+                if ($city_code) {
+                    $rate = arted_cdek_calculate_rate('Москва', $city_code);
+                    echo '<p><b>3. Тариф Москва→Москва:</b> ';
+                    if ($rate !== null) {
+                        echo '✅ ' . $rate . ' ₽';
+                    } else {
+                        $body = [
+                            'tariff_code'   => 234,
+                            'from_location' => ['code' => $city_code],
+                            'to_location'   => ['code' => $city_code],
+                            'packages'      => [['weight' => 2000, 'length' => 50, 'width' => 40, 'height' => 5]],
+                        ];
+                        $resp = wp_remote_post($cfg['api_base'] . '/calculator/tariff', [
+                            'timeout' => 15,
+                            'headers' => ['Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json'],
+                            'body'    => wp_json_encode($body),
+                        ]);
+                        $raw = is_wp_error($resp) ? $resp->get_error_message() : wp_remote_retrieve_body($resp);
+                        echo '❌ ошибка. Ответ: <code>' . esc_html(substr($raw, 0, 500)) . '</code>';
+                    }
+                    echo '</p>';
+                }
+            }
+            ?>
+        </div>
+        <?php endif; ?>
     </div>
     <?php
 }
