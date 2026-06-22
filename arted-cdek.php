@@ -169,7 +169,15 @@ class Arted_CDEK_Shipping extends WC_Shipping_Method {
                 $artist_count++;
             }
 
-            if ($artist_count === 0) return;
+            if ($artist_count === 0) {
+                // Фолбэк: город художника не задан или API недоступен
+                $this->add_rate([
+                    'id'    => $this->get_rate_id(),
+                    'label' => 'Доставка СДЭК (стоимость уточняется)',
+                    'cost'  => 0,
+                ]);
+                return;
+            }
 
             $label = $artist_count > 1
                 ? "Доставка СДЭК ({$artist_count} отправления)"
