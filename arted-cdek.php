@@ -8,8 +8,8 @@ function arted_cdek_settings() {
     $s = get_option('arted_settings', []);
     $test = !empty($s['cdek_test_mode']);
     return [
-        'client_id'     => $s['cdek_client_id']     ?? ($test ? 'EMscd6r9JnFiQ3bLoyjJY6eM'        : ''),
-        'client_secret' => $s['cdek_client_secret'] ?? ($test ? 'PjLZkKBHEiLK3YsjtNrt3TGNG0ahs3kG' : ''),
+        'client_id'     => ($s['cdek_client_id']     ?: ($test ? 'EMscd6r9JnFiQ3bLoyjJY6eM'        : '')),
+        'client_secret' => ($s['cdek_client_secret'] ?: ($test ? 'PjLZkKBHEiLK3YsjtNrt3TGNG0ahs3kG' : '')),
         'api_base'      => $test
             ? 'https://api.edu.cdek.ru/v2'
             : 'https://api.cdek.ru/v2',
@@ -99,7 +99,8 @@ function arted_cdek_calculate_rate($from_city, $to_city_code, $weight_g = 2000) 
     ]);
     if (is_wp_error($resp)) return null;
     $data = json_decode(wp_remote_retrieve_body($resp), true);
-    return isset($data['total_sum']) ? (float)$data['total_sum'] : null;
+    $sum = (float)($data['delivery_sum'] ?? $data['total_sum'] ?? 0);
+    return $sum > 0 ? $sum : null;
 }
 endif;
 
