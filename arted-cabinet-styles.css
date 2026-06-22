@@ -37,8 +37,8 @@ body.dark-theme {
     padding: 0 24px 80px;
 }
 
-/* ── Скрываем стандартное боковое меню WooCommerce ───── */
-.woocommerce-account .woocommerce-MyAccount-navigation {
+/* ── Скрываем стандартное боковое меню только для художников ───── */
+.arted-artist-page .woocommerce-MyAccount-navigation {
     display: none !important;
 }
 
