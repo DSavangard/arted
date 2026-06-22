@@ -156,7 +156,7 @@ class Arted_CDEK_Shipping extends WC_Shipping_Method {
             $to_city  = $package['destination']['city'] ?? '';
             $to_code  = $to_city ? arted_cdek_city_code($to_city) : null;
 
-            error_log("CDEK calc: to_city=$to_city to_code=$to_code");
+            $dbg = ['to_city' => $to_city, 'to_code' => $to_code, 'artists' => []];
 
             $total_cost   = 0.0;
             $artist_count = 0;
@@ -173,13 +173,15 @@ class Arted_CDEK_Shipping extends WC_Shipping_Method {
                         ?: get_user_meta($author_id, 'billing_city', true)
                         ?: get_user_meta($author_id, 'shipping_city', true);
                     $rate = $artist_city ? arted_cdek_calculate_rate($artist_city, $to_code) : null;
-                    error_log("CDEK calc: author=$author_id artist_city=$artist_city rate=$rate");
+                    $dbg['artists'][] = ['id' => $author_id, 'city' => $artist_city, 'rate' => $rate];
                     if ($rate === null) continue;
 
                     $total_cost += $rate;
                     $artist_count++;
                 }
             }
+
+            set_transient('arted_cdek_last_calc', $dbg, 300);
 
             if ($artist_count === 0) {
                 $this->add_rate([
@@ -283,6 +285,18 @@ function arted_cdek_pvz_field() {
     wp_enqueue_script('cdek-widget', 'https://cdn.jsdelivr.net/npm/@cdek-it/widget@3', [], null, true);
 }
 endif;
+
+add_action('admin_notices', function() {
+    if (!current_user_can('manage_options')) return;
+    $dbg = get_transient('arted_cdek_last_calc');
+    if (!$dbg) return;
+    echo '<div class="notice notice-info"><p><b>CDEK последний расчёт:</b> ';
+    echo 'Город покупателя: <b>' . esc_html($dbg['to_city']) . '</b> → код: <b>' . esc_html($dbg['to_code'] ?? 'null') . '</b> | ';
+    foreach ($dbg['artists'] as $a) {
+        echo 'Художник #' . $a['id'] . ' город: <b>' . esc_html($a['city'] ?: 'пусто') . '</b> ставка: <b>' . ($a['rate'] ?? 'null') . '</b> | ';
+    }
+    echo '</p></div>';
+});
 
 add_action('woocommerce_review_order_before_payment', 'arted_cdek_pvz_field');
 
