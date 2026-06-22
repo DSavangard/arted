@@ -90,10 +90,22 @@ add_action('woocommerce_register_form_end', function() {
                 passStep.style.display = 'block';
                 passwordShown = true;
                 setTimeout(function() {
-                    var rect = passStep.getBoundingClientRect();
-                    var offset = rect.top + window.scrollY - 120;
-                    window.scrollTo({ top: offset, behavior: 'smooth' });
-                    passInput.focus();
+                    // Grow the form so the field is above the footer
+                    var form = passStep.closest('form');
+                    if (form) {
+                        form.style.transition = 'padding-bottom 0.4s ease';
+                        form.style.paddingBottom = '260px';
+                    }
+                    // Also grow body if needed
+                    document.body.style.transition = 'padding-bottom 0.4s ease';
+                    var curPb = parseInt(getComputedStyle(document.body).paddingBottom) || 0;
+                    document.body.style.paddingBottom = Math.max(curPb, 260) + 'px';
+
+                    setTimeout(function() {
+                        var rect = passStep.getBoundingClientRect();
+                        window.scrollTo({ top: window.scrollY + rect.top - 80, behavior: 'smooth' });
+                        passInput.focus();
+                    }, 80);
                 }, 50);
             } else {
                 passInput.focus();
