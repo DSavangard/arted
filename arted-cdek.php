@@ -104,12 +104,11 @@ function arted_cdek_calculate_rate($from_city, $to_city_code, $weight_g = 2000) 
 endif;
 
 // ── WooCommerce Shipping Method ───────────────────────────────────────────
+// Класс определяется на верхнем уровне — WC_Shipping_Method уже доступен
+// (WooCommerce загружается на plugins_loaded, WPCode запускает сниппеты на init)
 
-if (!function_exists('arted_cdek_register_shipping_class')) :
-function arted_cdek_register_shipping_class() {
-    if (class_exists('Arted_CDEK_Shipping')) return;
-
-    class Arted_CDEK_Shipping extends WC_Shipping_Method {
+if (!class_exists('Arted_CDEK_Shipping') && class_exists('WC_Shipping_Method')) :
+class Arted_CDEK_Shipping extends WC_Shipping_Method {
 
         public function __construct($instance_id = 0) {
             $this->id                 = 'arted_cdek';
@@ -176,11 +175,8 @@ function arted_cdek_register_shipping_class() {
                 'cost'  => $total_cost,
             ]);
         }
-    }
 }
 endif;
-
-add_action('woocommerce_shipping_init', 'arted_cdek_register_shipping_class');
 
 add_filter('woocommerce_shipping_methods', function($methods) {
     $methods['arted_cdek'] = 'Arted_CDEK_Shipping';
