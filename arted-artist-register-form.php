@@ -50,6 +50,56 @@ function arted_register_role_switcher() {
     <?php
 }
 
+// ── Пароль: отключаем автогенерацию, добавляем поле ─────────────────────────
+add_filter('woocommerce_registration_generate_password', '__return_false');
+
+add_action('woocommerce_register_form_end', function() {
+    $lang = function_exists('arted_get_lang') ? arted_get_lang() : 'ru';
+    $labels = [
+        'ru' => ['label' => 'Придумайте пароль', 'hint' => 'Минимум 6 символов'],
+        'en' => ['label' => 'Create a password', 'hint' => 'At least 6 characters'],
+        'fr' => ['label' => 'Créez un mot de passe', 'hint' => 'Au moins 6 caractères'],
+    ];
+    $l = $labels[$lang] ?? $labels['ru'];
+    $err = isset($_POST['password']) ? '' : '';
+    ?>
+    <div id="arted-password-step" style="display:none; margin-bottom:16px;">
+        <p class="woocommerce-form-row">
+            <label for="arted_password"><?= esc_html($l['label']) ?> <span class="required">*</span></label>
+            <input type="password" name="password" id="arted_password" class="woocommerce-Input woocommerce-Input--text input-text"
+                   autocomplete="new-password" placeholder="<?= esc_attr($l['hint']) ?>"
+                   value="<?= isset($_POST['password']) ? esc_attr($_POST['password']) : '' ?>">
+        </p>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var form      = document.querySelector('form.woocommerce-form-register');
+        if (!form) return;
+        var submitBtn = form.querySelector('[name="register"]');
+        var passStep  = document.getElementById('arted-password-step');
+        var passInput = document.getElementById('arted_password');
+        if (!submitBtn || !passStep || !passInput) return;
+
+        var passwordShown = passInput.value.length > 0; // true on validation error reload
+        if (passwordShown) passStep.style.display = 'block';
+
+        submitBtn.addEventListener('click', function(e) {
+            if (passwordShown && passInput.value.length >= 6) return;
+            e.preventDefault();
+            if (!passwordShown) {
+                passStep.style.display = 'block';
+                passInput.focus();
+                passStep.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                passwordShown = true;
+            } else {
+                passInput.focus();
+            }
+        });
+    });
+    </script>
+    <?php
+});
+
 // ── Валидация полей художника ─────────────────────────────────────────────
 add_action('woocommerce_register_post', 'arted_validate_artist_fields', 10, 3);
 function arted_validate_artist_fields($username, $email, $errors) {

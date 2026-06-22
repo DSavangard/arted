@@ -46,8 +46,10 @@ body.dark-theme {
 .arted-cab-header {
     background: var(--cab-surface);
     border-bottom: 1px solid var(--cab-border);
-    margin: 0 -24px 32px;
-    padding: 0 24px;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    margin-bottom: 32px;
+    padding: 0 max(24px, calc((100vw - 1200px) / 2 + 24px)) 20px;
 }
 
 .arted-cab-top {
@@ -241,7 +243,9 @@ body.dark-theme {
 }
 
 .arted-btn-secondary {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: transparent;
     color: var(--cab-text-muted) !important;
     border: 1px solid var(--cab-border);
@@ -447,12 +451,21 @@ body.dark-theme {
     display: flex;
     gap: 6px;
     margin-top: 4px;
+    align-items: center;
+}
+
+.arted-work-card-actions .arted-btn-danger {
+    padding: 4px 8px;
+    font-size: 9px;
+    letter-spacing: 0.06em;
 }
 
 .arted-btn-danger {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: transparent;
-    color: var(--cab-text-muted) !important;
+    color: var(--cab-text) !important;
     border: 1px solid var(--cab-border);
     cursor: pointer;
     border-radius: 4px;

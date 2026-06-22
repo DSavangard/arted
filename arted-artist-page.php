@@ -30,10 +30,9 @@ add_action('template_redirect', function() {
 // ── 3. Рендер страницы художника ──────────────────────────────────────────
 function arted_render_artist_page($user) {
     $user_id  = $user->ID;
-    // Убираем WooCommerce/Elementor контент ДО get_header()
+    // Убираем WooCommerce контент ДО get_header()
     add_filter('woocommerce_is_shop', '__return_false');
     add_filter('woocommerce_is_product_category', '__return_false');
-    add_filter('elementor/frontend/the_content', '__return_empty_string');
     remove_action('woocommerce_before_main_content', 'woocommerce_output_content_wrapper', 10);
     remove_action('woocommerce_after_main_content', 'woocommerce_output_content_wrapper_end', 10);
     remove_all_actions('woocommerce_before_main_content');
@@ -61,7 +60,7 @@ function arted_render_artist_page($user) {
     // Работы художника (WooCommerce товары)
     $works_query = new WP_Query([
         'post_type'      => 'product',
-        'post_author'    => $user_id,
+        'author'         => $user_id,
         'post_status'    => 'publish',
         'posts_per_page' => 20,
         'orderby'        => 'date',
@@ -227,11 +226,14 @@ function arted_render_artist_page($user) {
             </section>
 
             <?php // ── Мастерская ── ?>
-            <?php if (!empty($workshop_ids)): ?>
+            <?php
+            $workshop_show_ids = !empty($workshop_ids) ? $workshop_ids : ($photo_id ? [$photo_id] : []);
+            ?>
+            <?php if (!empty($workshop_show_ids)): ?>
             <section class="arted-ap-section">
                 <h2 class="arted-ap-section-title"><?= esc_html($l['workshop']) ?></h2>
                 <div class="arted-ap-workshop">
-                    <?php foreach ($workshop_ids as $wid):
+                    <?php foreach ($workshop_show_ids as $wid):
                         $wurl = wp_get_attachment_image_url($wid, 'medium');
                         if (!$wurl) continue;
                     ?>
