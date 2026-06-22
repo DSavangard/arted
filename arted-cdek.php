@@ -128,6 +128,12 @@ class Arted_CDEK_Shipping extends WC_Shipping_Method {
 
         public function init_form_fields() {
             $this->form_fields = [
+                'enabled' => [
+                    'title'   => 'Включить',
+                    'type'    => 'checkbox',
+                    'label'   => 'Включить доставку СДЭК',
+                    'default' => 'yes',
+                ],
                 'title' => [
                     'title'   => 'Название',
                     'type'    => 'text',
