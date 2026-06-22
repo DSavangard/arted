@@ -139,6 +139,7 @@ a.arted-step {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    position: relative;
 }
 
 .arted-photo-preview img {
@@ -146,29 +147,51 @@ a.arted-step {
     height: 100%;
     object-fit: cover;
     display: block;
+    transition: filter 0.2s;
+}
+
+/* ── Hover-загрузка фото ────────────────────────────── */
+.arted-photo-preview.arted-photo-clickable {
+    cursor: pointer;
+}
+
+.arted-photo-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    font-weight: 300;
+    line-height: 1;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    transition: opacity 0.2s;
+    border-radius: inherit;
+    pointer-events: none;
+    user-select: none;
+}
+
+.arted-photo-preview.arted-photo-clickable:hover .arted-photo-overlay {
+    opacity: 1;
+}
+
+.arted-photo-preview.arted-photo-clickable:hover img {
+    filter: blur(3px);
+}
+
+.arted-photo-empty .arted-photo-overlay {
+    opacity: 1;
+    background: transparent;
+    color: var(--cab-text-hint);
+    font-size: 40px;
 }
 
 .arted-photo-placeholder {
     font-size: 28px;
     color: var(--cab-text-muted);
     line-height: 1;
-}
-
-.arted-upload-btn {
-    display: inline-block;
-    padding: 8px 16px;
-    background: var(--cab-surface);
-    border: 1px solid var(--cab-border);
-    border-radius: 6px;
-    font-size: 13px;
-    color: var(--cab-text);
-    cursor: pointer;
-    transition: border-color .2s;
-    margin-top: 8px;
-}
-
-.arted-upload-btn:hover {
-    border-color: var(--cab-accent);
 }
 
 /* ── Tags ────────────────────────────────────────────────────────────────── */

@@ -289,15 +289,14 @@ function arted_tab_add_work() {
     echo '<div class="arted-field">';
     echo '<label class="arted-field-label">' . esc_html($l['photo']) . ' <span style="color:var(--cab-accent)">*</span></label>';
     echo '<p class="arted-field-hint">' . esc_html($l['photo_hint']) . '</p>';
+    $wpcls = 'arted-photo-preview arted-photo-clickable' . ($img_url ? '' : ' arted-photo-empty');
     echo '<div class="arted-work-main-photo">';
-    echo '<div class="arted-photo-preview" id="arted-work-photo-preview">';
+    echo '<label class="' . $wpcls . '" id="arted-work-photo-preview" for="work_photo_file">';
     if ($img_url) {
         echo '<img src="' . esc_url($img_url) . '" alt="">';
-    } else {
-        echo '<div class="arted-work-photo-placeholder">+</div>';
     }
-    echo '</div>';
-    echo '<label class="arted-upload-btn" for="work_photo_file">Выбрать фото</label>';
+    echo '<span class="arted-photo-overlay">+</span>';
+    echo '</label>';
     echo '<input type="file" id="work_photo_file" name="work_photo_file" accept="image/*" style="display:none">';
     if ($img_id) echo '<input type="hidden" name="work_photo_id" value="' . $img_id . '">';
     echo '</div>';
@@ -324,7 +323,8 @@ function arted_tab_add_work() {
                     var reader = new FileReader();
                     reader.onload = function(e) {
                         var p = document.getElementById('arted-work-photo-preview');
-                        p.innerHTML = '<img src="' + e.target.result + '" alt="">';
+                        p.innerHTML = '<img src="' + e.target.result + '" alt=""><span class="arted-photo-overlay">+</span>';
+                        p.classList.remove('arted-photo-empty');
                     };
                     reader.readAsDataURL(this.files[0]);
                 }

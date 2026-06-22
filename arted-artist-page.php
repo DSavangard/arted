@@ -226,14 +226,11 @@ function arted_render_artist_page($user) {
             </section>
 
             <?php // ── Мастерская ── ?>
-            <?php
-            $workshop_show_ids = !empty($workshop_ids) ? $workshop_ids : ($photo_id ? [$photo_id] : []);
-            ?>
-            <?php if (!empty($workshop_show_ids)): ?>
+            <?php if (!empty($workshop_ids)): ?>
             <section class="arted-ap-section">
                 <h2 class="arted-ap-section-title"><?= esc_html($l['workshop']) ?></h2>
                 <div class="arted-ap-workshop">
-                    <?php foreach ($workshop_show_ids as $wid):
+                    <?php foreach ($workshop_ids as $wid):
                         $wurl = wp_get_attachment_image_url($wid, 'medium');
                         if (!$wurl) continue;
                     ?>

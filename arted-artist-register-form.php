@@ -88,9 +88,13 @@ add_action('woocommerce_register_form_end', function() {
             e.preventDefault();
             if (!passwordShown) {
                 passStep.style.display = 'block';
-                passInput.focus();
-                passStep.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 passwordShown = true;
+                setTimeout(function() {
+                    var rect = passStep.getBoundingClientRect();
+                    var offset = rect.top + window.scrollY - 120;
+                    window.scrollTo({ top: offset, behavior: 'smooth' });
+                    passInput.focus();
+                }, 50);
             } else {
                 passInput.focus();
             }

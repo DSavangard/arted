@@ -210,18 +210,17 @@ function arted_tab_profile() {
     if ($current_step === 1) {
         echo '<div class="arted-form-section">';
 
+        $pcls = 'arted-photo-preview arted-photo-clickable' . ($photo_url ? '' : ' arted-photo-empty');
         echo '<div class="arted-photo-upload">';
-        echo '<div class="arted-photo-preview" id="arted-photo-preview">';
+        echo '<label class="' . $pcls . '" id="arted-photo-preview" for="arted_photo_file">';
         if ($photo_url) {
             echo '<img src="' . esc_url($photo_url) . '" alt="">';
-        } else {
-            echo '<div class="arted-photo-placeholder"><span>+</span></div>';
         }
-        echo '</div>';
+        echo '<span class="arted-photo-overlay">+</span>';
+        echo '</label>';
         echo '<div class="arted-photo-controls">';
         echo '<label class="arted-field-label">' . esc_html($l['photo']) . '</label>';
         echo '<p class="arted-field-hint">' . esc_html($l['photo_hint']) . '</p>';
-        echo '<label class="arted-btn-secondary arted-upload-btn" for="arted_photo_file">' . esc_html($photo_url ? $l['photo_change'] : $l['photo_upload']) . '</label>';
         echo '<input type="file" id="arted_photo_file" name="arted_photo_file" accept="image/*" style="display:none" data-upload="profile">';
         if ($photo_id) echo '<input type="hidden" name="arted_photo_id" value="' . $photo_id . '">';
         echo '</div></div>';
@@ -339,7 +338,8 @@ function arted_tab_profile() {
                     var reader = new FileReader();
                     reader.onload = function(e) {
                         var preview = document.getElementById('arted-photo-preview');
-                        preview.innerHTML = '<img src="' + e.target.result + '" alt="">';
+                        preview.innerHTML = '<img src="' + e.target.result + '" alt=""><span class="arted-photo-overlay">+</span>';
+                        preview.classList.remove('arted-photo-empty');
                     };
                     reader.readAsDataURL(this.files[0]);
                 }
