@@ -9,7 +9,16 @@ add_filter('query_vars', function($vars) {
     return $vars;
 });
 
-// ── 2. Перехват шаблона ───────────────────────────────────────────────────
+// ── 2. Elementor шрифты и стили на странице художника ────────────────────
+add_action('wp_enqueue_scripts', function() {
+    if (!get_query_var('arted_artist')) return;
+    if (class_exists('\Elementor\Plugin')) {
+        \Elementor\Plugin::$instance->frontend->enqueue_styles();
+        \Elementor\Plugin::$instance->frontend->enqueue_scripts();
+    }
+}, 5);
+
+// ── 3. Перехват шаблона ───────────────────────────────────────────────────
 add_action('template_redirect', function() {
     $slug = get_query_var('arted_artist');
     if (!$slug) return;
@@ -179,15 +188,27 @@ function arted_render_artist_page($user) {
         <div class="arted-ap-body">
 
             <?php // ── Биография ── ?>
-            <?php if ($bio): ?>
+            <?php if ($bio || !empty($personal_ids)): ?>
             <section class="arted-ap-section">
                 <h2 class="arted-ap-section-title"><?= esc_html($l['bio']) ?></h2>
+                <?php if ($bio): ?>
                 <div class="arted-ap-bio"><?= nl2br(esc_html($bio)) ?></div>
+                <?php endif; ?>
                 <?php if ($materials): ?>
                 <div class="arted-ap-tags" style="margin-top:16px;">
                     <span class="arted-ap-tag-label"><?= esc_html($l['materials']) ?>:</span>
                     <?php foreach ($materials as $m): ?>
                     <span class="arted-ap-tag"><?= esc_html($m) ?></span>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+                <?php if (!empty($personal_ids)): ?>
+                <div class="arted-ap-workshop" style="margin-top:24px;">
+                    <?php foreach ($personal_ids as $pid):
+                        $purl = wp_get_attachment_image_url($pid, 'large');
+                        if (!$purl) continue;
+                    ?>
+                    <div class="arted-ap-workshop-img"><img src="<?= esc_url($purl) ?>" alt=""></div>
                     <?php endforeach; ?>
                 </div>
                 <?php endif; ?>
@@ -261,22 +282,6 @@ function arted_render_artist_page($user) {
             </section>
             <?php endif; ?>
 
-            <?php // ── Личные фото ── ?>
-            <?php if (!empty($personal_ids)): ?>
-            <section class="arted-ap-section">
-                <h2 class="arted-ap-section-title"><?= esc_html($l['personal']) ?></h2>
-                <div class="arted-ap-workshop">
-                    <?php foreach ($personal_ids as $pid):
-                        $purl = wp_get_attachment_image_url($pid, 'large');
-                        if (!$purl) continue;
-                    ?>
-                    <div class="arted-ap-workshop-img">
-                        <img src="<?= esc_url($purl) ?>" alt="">
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-            </section>
-            <?php endif; ?>
 
             <?php // ── Достижения ── ?>
             <?php if ($education || $exhibitions || $press || $awards): ?>

@@ -65,6 +65,24 @@ body.dark-theme {
     color: var(--cab-text);
 }
 
+.arted-cab-top-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.arted-cab-logout {
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--cab-text-muted);
+    text-decoration: none;
+    transition: color .15s;
+}
+
+.arted-cab-logout:hover {
+    color: var(--cab-accent);
+}
+
 .arted-cab-badge {
     font-size: 10px;
     letter-spacing: 0.1em;

@@ -7,9 +7,39 @@
 
 /* ── Hero ────────────────────────────────────────────────────────────────── */
 .arted-ap-hero {
-    padding: 48px 0 40px;
-    border-bottom: 1px solid var(--cab-border, #e5e5e5);
-    margin-bottom: 48px;
+    background: #FD2E04;
+    padding: 48px 24px 40px;
+    margin: 0 -24px 48px;
+    border-bottom: none;
+}
+
+.arted-ap-hero .arted-ap-name,
+.arted-ap-hero .arted-ap-city,
+.arted-ap-hero .arted-ap-verified {
+    color: #fff;
+}
+
+.arted-ap-hero .arted-ap-tag {
+    border-color: rgba(255,255,255,0.35);
+    color: rgba(255,255,255,0.88);
+}
+
+.arted-ap-hero .arted-ap-photo {
+    border-color: rgba(255,255,255,0.3);
+    background: rgba(0,0,0,0.15);
+}
+
+.arted-ap-hero .arted-ap-photo-placeholder {
+    color: rgba(255,255,255,0.7);
+}
+
+.arted-ap-hero .arted-ap-contact-btn {
+    background: #fff;
+    color: #FD2E04 !important;
+}
+
+.arted-ap-hero .arted-ap-contact-btn:hover {
+    background: rgba(255,255,255,0.88);
 }
 
 .arted-ap-hero-inner {

@@ -447,10 +447,16 @@ add_action('woocommerce_before_account_navigation', function() {
     $items   = wc_get_account_menu_items();
     unset($items['customer-logout']);
 
+    $logout_labels = ['ru' => 'Выйти', 'en' => 'Log out', 'fr' => 'Déconnexion'];
+    $logout_label  = $logout_labels[$lang] ?? 'Выйти';
+
     echo '<div class="arted-cab-header">';
     echo '<div class="arted-cab-top">';
     echo '<span class="arted-cab-name">' . esc_html($name) . '</span>';
+    echo '<div class="arted-cab-top-right">';
     echo '<span class="arted-cab-badge ' . $bcls . '">' . esc_html($btext) . '</span>';
+    echo '<a href="' . esc_url(wp_logout_url(home_url())) . '" class="arted-cab-logout">' . esc_html($logout_label) . '</a>';
+    echo '</div>';
     echo '</div>';
     echo '<nav class="arted-cab-nav">';
     foreach ($items as $key => $label) {
