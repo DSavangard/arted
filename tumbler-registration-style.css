@@ -3,14 +3,14 @@ form.woocommerce-form-register {
     padding-bottom: 300px !important;
 }
 
-/* ── Убираем серые полосы под полями и кнопками ─────────────────────────── */
+/* ── Серые полосы: фон совпадает с фоном страницы ───────────────────────── */
 .woocommerce-form-login p,
 .woocommerce-form-register p,
 .woocommerce-form-login .form-row,
 .woocommerce-form-register .form-row,
 .woocommerce-form-login .woocommerce-form-row,
 .woocommerce-form-register .woocommerce-form-row {
-    background: transparent !important;
+    background-color: var(--cab-bg, #070707) !important;
     box-shadow: none !important;
 }
 
