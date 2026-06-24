@@ -568,7 +568,28 @@ body.dark-theme {
 }
 
 .arted-tab-content {
-    padding-top: 8px;
+    background: var(--cab-surface);
+    margin: 0 -24px;
+    padding: 24px 24px 0;
+    border-top: 1px solid var(--cab-border);
+}
+
+/* Внутри плашки события — строки с разделителем, без карточечного фона */
+.arted-tab-content .arted-event {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--cab-border);
+    border-radius: 0;
+    padding: 14px 0;
+}
+
+.arted-tab-content .arted-event:last-child {
+    border-bottom: none;
+}
+
+/* Метрики и карточки работ остаются как карточки */
+.arted-tab-content .arted-metric {
+    background: var(--cab-surface-2);
 }
 
 /* ── Автор на странице товара ─────────────────────────── */
