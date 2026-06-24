@@ -54,10 +54,13 @@ function arted_handle_profile_save() {
         if (!empty($_POST['arted_workshop_desc'])) {
             update_user_meta($user_id, 'arted_workshop_desc', sanitize_textarea_field($_POST['arted_workshop_desc']));
         }
+        $profile_photo_id = (int)get_user_meta($user_id, 'arted_photo_id', true);
         foreach (['workshop', 'personal'] as $gallery) {
             $ids_string = $_POST['arted_' . $gallery . '_ids'] ?? '';
             $ids = array_filter(array_map('intval', explode(',', $ids_string)));
-            update_user_meta($user_id, 'arted_' . $gallery . '_photo_ids', $ids);
+            // Не допускаем профильное фото в галереях (артефакт старого кода)
+            if ($profile_photo_id) $ids = array_filter($ids, fn($id) => $id !== $profile_photo_id);
+            update_user_meta($user_id, 'arted_' . $gallery . '_photo_ids', array_values($ids));
         }
     }
 

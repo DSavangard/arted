@@ -164,8 +164,13 @@ function arted_tab_profile() {
     $press        = get_user_meta($user_id, 'arted_press',            true);
     $awards       = get_user_meta($user_id, 'arted_awards',           true);
     $photo_id     = get_user_meta($user_id, 'arted_photo_id',         true);
-    $workshop_ids = get_user_meta($user_id, 'arted_workshop_photo_ids', true) ?: [];
-    $personal_ids = get_user_meta($user_id, 'arted_personal_photo_ids', true) ?: [];
+    $workshop_ids = (array)(get_user_meta($user_id, 'arted_workshop_photo_ids', true) ?: []);
+    $personal_ids = (array)(get_user_meta($user_id, 'arted_personal_photo_ids', true) ?: []);
+    // Очищаем профильное фото из галерей (артефакт старого fallback-кода)
+    if ($photo_id) {
+        $workshop_ids = array_values(array_filter($workshop_ids, fn($id) => (int)$id !== (int)$photo_id));
+        $personal_ids = array_values(array_filter($personal_ids, fn($id) => (int)$id !== (int)$photo_id));
+    }
 
     $enc_key      = defined('AUTH_KEY') ? AUTH_KEY : 'arted_key';
     $bank_account = arted_decrypt(get_user_meta($user_id, 'arted_bank_account', true), $enc_key);

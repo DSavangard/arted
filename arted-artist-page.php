@@ -53,6 +53,8 @@ function arted_render_artist_page($user) {
     $photo_id    = get_user_meta($user_id, 'arted_photo_id',        true);
     $photo_url   = $photo_id ? wp_get_attachment_image_url($photo_id, 'medium') : '';
     $workshop_ids = (array)(get_user_meta($user_id, 'arted_workshop_photo_ids', true) ?: []);
+    // Исключаем профильное фото из мастерской (артефакт старого fallback-кода)
+    if ($photo_id) $workshop_ids = array_values(array_filter($workshop_ids, fn($id) => (int)$id !== (int)$photo_id));
     $education   = get_user_meta($user_id, 'arted_education',      true);
     $exhibitions = get_user_meta($user_id, 'arted_exhibitions',    true);
     $awards      = get_user_meta($user_id, 'arted_awards',         true);
