@@ -1,4 +1,18 @@
 <?php
+// ── Убираем серые полосы на странице входа/регистрации ────────────────────
+add_action('wp_head', function() {
+    if (!is_account_page()) return;
+    echo '<style>
+    form.woocommerce-form-login p,
+    form.woocommerce-form-register p,
+    .woocommerce-form-login .woocommerce-form-row,
+    .woocommerce-form-register .woocommerce-form-row {
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    </style>';
+}, 100);
+
 // ── Переключатель роли на форме регистрации ───────────────────────────────
 add_action('woocommerce_register_form', 'arted_register_role_switcher', 5);
 function arted_register_role_switcher() {
