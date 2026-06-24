@@ -87,23 +87,34 @@ add_action('woocommerce_register_form_end', function() {
             if (passwordShown && passInput.value.length >= 6) return;
             e.preventDefault();
             if (!passwordShown) {
-                passStep.style.display = 'block';
                 passwordShown = true;
 
-                // Вставляем спейсер в конец формы — он анимирует рост страницы
-                var spacer = document.createElement('div');
-                spacer.id = 'arted-pass-spacer';
-                spacer.style.cssText = 'height:0;overflow:hidden;transition:height 0.4s ease;';
-                form.appendChild(spacer);
-                // Запускаем анимацию в следующем фрейме
-                setTimeout(function() { spacer.style.height = '320px'; }, 16);
+                // 1. Мгновенно добавляем пространство снизу страницы (работает при любом overflow)
+                document.body.style.paddingBottom = '500px';
 
-                // Прокручиваем к полю после начала анимации
-                setTimeout(function() {
-                    var rect = passStep.getBoundingClientRect();
-                    window.scrollTo({ top: window.scrollY + rect.top - 80, behavior: 'smooth' });
-                    passInput.focus();
-                }, 120);
+                // 2. Показываем поле пароля
+                passStep.style.display = 'block';
+
+                // 3. Ждём перерасчёт layout, затем скроллим
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                        // Ищем фиксированный футер по всем возможным селекторам
+                        var footer = document.querySelector(
+                            'footer, .elementor-location-footer, .site-footer, ' +
+                            '#colophon, #site-footer, [data-elementor-type="footer"], ' +
+                            '[class*="footer"]:not([class*="widget"]):not([class*="post"])'
+                        );
+                        var footerTop = footer ? footer.getBoundingClientRect().top : window.innerHeight - 80;
+
+                        var inputRect = passInput.getBoundingClientRect();
+                        // Скроллим вниз так, чтобы низ инпута оказался на 32px выше футера
+                        var needed = inputRect.bottom - footerTop + 32;
+                        if (needed > 0) {
+                            window.scrollBy({ top: needed, behavior: 'smooth' });
+                        }
+                        setTimeout(function() { passInput.focus(); }, 300);
+                    });
+                });
             } else {
                 passInput.focus();
             }
