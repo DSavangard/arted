@@ -4,12 +4,16 @@ form.woocommerce-form-register {
 }
 
 /* ── Серые полосы: фон совпадает с фоном страницы ───────────────────────── */
+form.woocommerce-form-login,
+form.woocommerce-form-register,
 .woocommerce-form-login p,
 .woocommerce-form-register p,
-.woocommerce-form-login .form-row,
-.woocommerce-form-register .form-row,
-.woocommerce-form-login .woocommerce-form-row,
-.woocommerce-form-register .woocommerce-form-row {
+.woocommerce-form-login div:not(.arted-role-toggle):not(.arted-role-switcher),
+.woocommerce-form-register div:not(.arted-role-toggle):not(.arted-role-switcher),
+.woocommerce-form-login .woocommerce-LostPassword,
+.woocommerce-form-register .woocommerce-LostPassword,
+.woocommerce-form-login fieldset,
+.woocommerce-form-register fieldset {
     background-color: var(--cab-bg, #070707) !important;
     box-shadow: none !important;
 }
