@@ -3,6 +3,30 @@ form.woocommerce-form-register {
     padding-bottom: 300px !important;
 }
 
+/* ── Тёмная тема: инпуты регистрации/входа ──────────────────────────────── */
+body.dark-theme .woocommerce-form .woocommerce-Input,
+body.dark-theme .woocommerce-form input[type="text"],
+body.dark-theme .woocommerce-form input[type="email"],
+body.dark-theme .woocommerce-form input[type="password"] {
+    background: #111 !important;
+    border: 1px solid #333 !important;
+    color: #ccc !important;
+    border-radius: 4px;
+}
+
+body.dark-theme .woocommerce-form .woocommerce-Input:focus,
+body.dark-theme .woocommerce-form input[type="text"]:focus,
+body.dark-theme .woocommerce-form input[type="email"]:focus,
+body.dark-theme .woocommerce-form input[type="password"]:focus {
+    outline: none !important;
+    border-color: #FD2E04 !important;
+}
+
+body.dark-theme .woocommerce-form label,
+body.dark-theme .woocommerce-form .woocommerce-form__label {
+    color: #888 !important;
+}
+
 /* ── Переключатель роли на регистрации ───────────────────────────────────── */
 .arted-role-switcher {
     margin-bottom: 16px;
