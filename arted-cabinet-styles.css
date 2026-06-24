@@ -270,12 +270,10 @@ body.dark-theme {
     background: var(--cab-surface);
     border-top: 1px solid var(--cab-border);
     margin-top: 24px;
-    padding: 20px calc((100vw - 1200px) / 2 + 24px);
+    padding: 20px 24px;
     position: relative;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100vw;
-    box-sizing: border-box;
+    left: -24px;
+    width: calc(100% + 48px);
 }
 
 /* ── Баннер незаполненного профиля ───────────────────── */
