@@ -52,11 +52,17 @@ function arted_render_artist_page($user) {
     $materials   = (array)(get_user_meta($user_id, 'arted_materials', true) ?: []);
     $photo_id    = get_user_meta($user_id, 'arted_photo_id',        true);
     $photo_url   = $photo_id ? wp_get_attachment_image_url($photo_id, 'medium') : '';
-    $workshop_ids = (array)(get_user_meta($user_id, 'arted_workshop_photo_ids', true) ?: []);
-    // Исключаем профильное фото из мастерской (артефакт старого fallback-кода)
-    if ($photo_id) $workshop_ids = array_values(array_filter($workshop_ids, fn($id) => (int)$id !== (int)$photo_id));
+    $workshop_ids  = (array)(get_user_meta($user_id, 'arted_workshop_photo_ids',  true) ?: []);
+    $personal_ids  = (array)(get_user_meta($user_id, 'arted_personal_photo_ids',  true) ?: []);
+    $workshop_desc = get_user_meta($user_id, 'arted_workshop_desc', true);
+    // Исключаем профильное фото из галерей (артефакт старого fallback-кода)
+    if ($photo_id) {
+        $workshop_ids = array_values(array_filter($workshop_ids, fn($id) => (int)$id !== (int)$photo_id));
+        $personal_ids = array_values(array_filter($personal_ids, fn($id) => (int)$id !== (int)$photo_id));
+    }
     $education   = get_user_meta($user_id, 'arted_education',      true);
     $exhibitions = get_user_meta($user_id, 'arted_exhibitions',    true);
+    $press       = get_user_meta($user_id, 'arted_press',          true);
     $awards      = get_user_meta($user_id, 'arted_awards',         true);
 
     // Работы художника (WooCommerce товары)
@@ -79,9 +85,11 @@ function arted_render_artist_page($user) {
             'styles'       => 'Стили',
             'materials'    => 'Материалы',
             'workshop'     => 'Мастерская',
+            'personal'     => 'Личные фото',
             'achievements' => 'Достижения',
             'education'    => 'Образование',
             'exhibitions'  => 'Выставки',
+            'press'        => 'Пресса',
             'awards'       => 'Награды',
             'contact'      => 'Написать художнику',
             'buy'          => 'Купить',
@@ -94,9 +102,11 @@ function arted_render_artist_page($user) {
             'styles'       => 'Styles',
             'materials'    => 'Materials',
             'workshop'     => 'Studio',
+            'personal'     => 'Personal photos',
             'achievements' => 'Achievements',
             'education'    => 'Education',
             'exhibitions'  => 'Exhibitions',
+            'press'        => 'Press',
             'awards'       => 'Awards',
             'contact'      => 'Contact artist',
             'buy'          => 'Buy',
@@ -109,9 +119,11 @@ function arted_render_artist_page($user) {
             'styles'       => 'Styles',
             'materials'    => 'Matériaux',
             'workshop'     => 'Atelier',
+            'personal'     => 'Photos personnelles',
             'achievements' => 'Réalisations',
             'education'    => 'Formation',
             'exhibitions'  => 'Expositions',
+            'press'        => 'Presse',
             'awards'       => 'Prix',
             'contact'      => "Contacter l'artiste",
             'buy'          => 'Acheter',
@@ -228,12 +240,16 @@ function arted_render_artist_page($user) {
             </section>
 
             <?php // ── Мастерская ── ?>
-            <?php if (!empty($workshop_ids)): ?>
+            <?php if (!empty($workshop_ids) || $workshop_desc): ?>
             <section class="arted-ap-section">
                 <h2 class="arted-ap-section-title"><?= esc_html($l['workshop']) ?></h2>
+                <?php if ($workshop_desc): ?>
+                <div class="arted-ap-bio" style="margin-bottom:20px;"><?= nl2br(esc_html($workshop_desc)) ?></div>
+                <?php endif; ?>
+                <?php if (!empty($workshop_ids)): ?>
                 <div class="arted-ap-workshop">
                     <?php foreach ($workshop_ids as $wid):
-                        $wurl = wp_get_attachment_image_url($wid, 'medium');
+                        $wurl = wp_get_attachment_image_url($wid, 'large');
                         if (!$wurl) continue;
                     ?>
                     <div class="arted-ap-workshop-img">
@@ -241,11 +257,29 @@ function arted_render_artist_page($user) {
                     </div>
                     <?php endforeach; ?>
                 </div>
+                <?php endif; ?>
+            </section>
+            <?php endif; ?>
+
+            <?php // ── Личные фото ── ?>
+            <?php if (!empty($personal_ids)): ?>
+            <section class="arted-ap-section">
+                <h2 class="arted-ap-section-title"><?= esc_html($l['personal']) ?></h2>
+                <div class="arted-ap-workshop">
+                    <?php foreach ($personal_ids as $pid):
+                        $purl = wp_get_attachment_image_url($pid, 'large');
+                        if (!$purl) continue;
+                    ?>
+                    <div class="arted-ap-workshop-img">
+                        <img src="<?= esc_url($purl) ?>" alt="">
+                    </div>
+                    <?php endforeach; ?>
+                </div>
             </section>
             <?php endif; ?>
 
             <?php // ── Достижения ── ?>
-            <?php if ($education || $exhibitions || $awards): ?>
+            <?php if ($education || $exhibitions || $press || $awards): ?>
             <section class="arted-ap-section">
                 <h2 class="arted-ap-section-title"><?= esc_html($l['achievements']) ?></h2>
                 <div class="arted-ap-achievements">
@@ -259,6 +293,12 @@ function arted_render_artist_page($user) {
                     <div class="arted-ap-achievement">
                         <div class="arted-ap-achievement-label"><?= esc_html($l['exhibitions']) ?></div>
                         <div class="arted-ap-achievement-text"><?= nl2br(esc_html($exhibitions)) ?></div>
+                    </div>
+                    <?php endif; ?>
+                    <?php if ($press): ?>
+                    <div class="arted-ap-achievement">
+                        <div class="arted-ap-achievement-label"><?= esc_html($l['press']) ?></div>
+                        <div class="arted-ap-achievement-text"><?= nl2br(esc_html($press)) ?></div>
                     </div>
                     <?php endif; ?>
                     <?php if ($awards): ?>
