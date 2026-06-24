@@ -89,24 +89,21 @@ add_action('woocommerce_register_form_end', function() {
             if (!passwordShown) {
                 passStep.style.display = 'block';
                 passwordShown = true;
-                setTimeout(function() {
-                    // Grow the form so the field is above the footer
-                    var form = passStep.closest('form');
-                    if (form) {
-                        form.style.transition = 'padding-bottom 0.4s ease';
-                        form.style.paddingBottom = '260px';
-                    }
-                    // Also grow body if needed
-                    document.body.style.transition = 'padding-bottom 0.4s ease';
-                    var curPb = parseInt(getComputedStyle(document.body).paddingBottom) || 0;
-                    document.body.style.paddingBottom = Math.max(curPb, 260) + 'px';
 
-                    setTimeout(function() {
-                        var rect = passStep.getBoundingClientRect();
-                        window.scrollTo({ top: window.scrollY + rect.top - 80, behavior: 'smooth' });
-                        passInput.focus();
-                    }, 80);
-                }, 50);
+                // Вставляем спейсер в конец формы — он анимирует рост страницы
+                var spacer = document.createElement('div');
+                spacer.id = 'arted-pass-spacer';
+                spacer.style.cssText = 'height:0;overflow:hidden;transition:height 0.4s ease;';
+                form.appendChild(spacer);
+                // Запускаем анимацию в следующем фрейме
+                setTimeout(function() { spacer.style.height = '320px'; }, 16);
+
+                // Прокручиваем к полю после начала анимации
+                setTimeout(function() {
+                    var rect = passStep.getBoundingClientRect();
+                    window.scrollTo({ top: window.scrollY + rect.top - 80, behavior: 'smooth' });
+                    passInput.focus();
+                }, 120);
             } else {
                 passInput.focus();
             }
