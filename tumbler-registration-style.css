@@ -3,11 +3,13 @@ form.woocommerce-form-register {
     padding-bottom: 300px !important;
 }
 
-/* ── Тёмная тема: убираем серые полосы под полями и кнопками ────────────── */
-body.dark-theme .woocommerce-form-row,
-body.dark-theme .woocommerce-form p,
-body.dark-theme .form-row,
-body.dark-theme .woocommerce-form .form-row {
+/* ── Убираем серые полосы под полями и кнопками ─────────────────────────── */
+.woocommerce-form-login p,
+.woocommerce-form-register p,
+.woocommerce-form-login .form-row,
+.woocommerce-form-register .form-row,
+.woocommerce-form-login .woocommerce-form-row,
+.woocommerce-form-register .woocommerce-form-row {
     background: transparent !important;
     box-shadow: none !important;
 }
