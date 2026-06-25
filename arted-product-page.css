@@ -1,60 +1,8 @@
 /* ── Страница товара — адаптивность для ПК ─────────────────────────────── */
 
-/* ── Секция 1: ровно один экран ─────────────────────────────────────────── */
-.single-product [data-id="6751d2b"] {
-    min-height: 100vh !important;
-    max-height: 100vh !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
-}
-
-.single-product [data-id="6751d2b"] > .e-con-inner {
-    height: 100% !important;
-    max-height: 100% !important;
-    flex-wrap: nowrap !important;
-    gap: clamp(24px, 3vw, 64px) !important;
-    align-items: stretch !important;
-}
-
-/* ── Изображение: заполняет высоту, кадрируется по верху ────────────────── */
-.single-product [data-id="b6d0066"] {
-    flex: 0 0 48% !important;
-    width: auto !important;
-    min-width: 280px !important;
-    overflow: hidden !important;
-}
-
-.single-product [data-id="b6d0066"] .woocommerce-product-gallery,
-.single-product [data-id="b6d0066"] .woocommerce-product-gallery__wrapper,
-.single-product [data-id="b6d0066"] .woocommerce-product-gallery__image {
-    height: 100% !important;
-}
-
-.single-product [data-id="b6d0066"] .woocommerce-product-gallery__image a {
-    display: block !important;
-    height: 100% !important;
-}
-
-.single-product [data-id="b6d0066"] .woocommerce-product-gallery__image img,
-.single-product [data-id="b6d0066"] img.wp-post-image {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
-    object-position: center top !important;
-    display: block !important;
-}
-
-/* ── Инфо-колонка: заполняет оставшееся место ───────────────────────────── */
-.single-product [data-id="eb5a33c"] {
-    flex: 1 1 320px !important;
-    width: auto !important;
-    min-width: 300px !important;
-    overflow: hidden !important;
-}
-
-/* ── Форма заказа: компактная, не растягивается на высоту картинки ──────── */
-/* Причина: flex-direction:row + justify-content:space-between делит высоту  */
-/* изображения (800px+) между price-row и buttons-row → кнопки уходят вниз  */
+/* ── Форма заказа: убираем растяжку на высоту картинки ──────────────────── */
+/* Проблема: flex-direction:row + justify-content:space-between растягивает  */
+/* price-row и buttons-row на всю высоту изображения → кнопки уходят вниз   */
 .single-product .custom-order-form {
     height: auto !important;
     min-height: auto !important;
@@ -70,14 +18,20 @@
     width: 100% !important;
 }
 
-/* buttons-row: сохраняем column-reverse (ACHETER выше AJOUTER),        */
-/* только убираем justify-content:end чтобы кнопки шли сразу за описанием */
+/* Кнопки: сохраняем column-reverse (ACHETER выше AJOUTER),
+   только убираем justify-content:end чтобы не было пустого пространства сверху */
 .single-product .buttons-row {
     justify-content: flex-start !important;
 }
 
-/* ── Секции описания и доп. инфо: читаемая ширина текста ────────────────── */
-/* Без этого текст растягивается на ~1400px — строки нечитаемы на PC       */
+/* ── Инфо-колонка: заполняет оставшееся пространство ───────────────────── */
+.single-product [data-id="eb5a33c"] {
+    flex: 1 1 320px !important;
+    width: auto !important;
+    min-width: 300px !important;
+}
+
+/* ── Секции описания: читаемая ширина текста ────────────────────────────── */
 .single-product [data-id="5e6a559"] .e-con-inner,
 .single-product [data-id="60a3c72"] .e-con-inner {
     max-width: min(100%, 1100px) !important;
@@ -85,33 +39,12 @@
     margin-right: auto !important;
 }
 
-/* ── Узкие ПК / планшеты (< 900px): вертикальный стек ──────────────────── */
+/* ── Узкие экраны (< 900px): вертикальный стек ──────────────────────────── */
 @media (max-width: 900px) {
-    .single-product [data-id="6751d2b"] {
-        min-height: auto !important;
-        max-height: none !important;
-        overflow: visible !important;
-    }
-
-    .single-product [data-id="6751d2b"] > .e-con-inner {
-        flex-direction: column !important;
-        height: auto !important;
-    }
-
-    .single-product [data-id="b6d0066"],
     .single-product [data-id="eb5a33c"] {
         flex: none !important;
         width: 100% !important;
-        max-width: 100% !important;
         min-width: 0 !important;
-        overflow: visible !important;
-    }
-
-    .single-product [data-id="b6d0066"] .woocommerce-product-gallery__image img,
-    .single-product [data-id="b6d0066"] img.wp-post-image {
-        height: auto !important;
-        max-height: 80vw !important;
-        object-fit: contain !important;
     }
 
     .single-product [data-id="5e6a559"] .e-con-inner,
