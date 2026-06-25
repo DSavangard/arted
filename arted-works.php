@@ -170,6 +170,12 @@ function arted_tab_add_work() {
             'saved'       => 'Работа сохранена и отправлена на модерацию',
             'updated'     => 'Изменения сохранены',
             'category'    => 'Категория',
+            'dimensions'  => 'Размеры и вес',
+            'dim_l'       => 'Длина (см)',
+            'dim_w'       => 'Ширина (см)',
+            'dim_h'       => 'Высота (см)',
+            'dim_weight'  => 'Вес (кг)',
+            'dim_hint'    => 'Используется для расчёта доставки СДЭК',
         ],
         'en' => [
             'add_title'   => 'New Work',
@@ -191,6 +197,12 @@ function arted_tab_add_work() {
             'saved'       => 'Work saved and submitted for review',
             'updated'     => 'Changes saved',
             'category'    => 'Category',
+            'dimensions'  => 'Dimensions & weight',
+            'dim_l'       => 'Length (cm)',
+            'dim_w'       => 'Width (cm)',
+            'dim_h'       => 'Height (cm)',
+            'dim_weight'  => 'Weight (kg)',
+            'dim_hint'    => 'Used for CDEK shipping calculation',
         ],
         'fr' => [
             'add_title'   => 'Nouvelle œuvre',
@@ -212,6 +224,12 @@ function arted_tab_add_work() {
             'saved'       => 'Œuvre enregistrée et soumise pour modération',
             'updated'     => 'Modifications enregistrées',
             'category'    => 'Catégorie',
+            'dimensions'  => 'Dimensions et poids',
+            'dim_l'       => 'Longueur (cm)',
+            'dim_w'       => 'Largeur (cm)',
+            'dim_h'       => 'Hauteur (cm)',
+            'dim_weight'  => 'Poids (kg)',
+            'dim_hint'    => 'Utilisé pour le calcul de livraison CDEK',
         ],
     ];
     $l = $t[$lang] ?? $t['ru'];
@@ -226,6 +244,10 @@ function arted_tab_add_work() {
     $img_id    = $product ? $product->get_image_id() : 0;
     $img_url   = $img_id ? wp_get_attachment_image_url($img_id, 'medium') : '';
     $gallery_ids = $product ? $product->get_gallery_image_ids() : [];
+    $dim_l       = $product ? $product->get_length()  : '';
+    $dim_w       = $product ? $product->get_width()   : '';
+    $dim_h       = $product ? $product->get_height()  : '';
+    $dim_weight  = $product ? $product->get_weight()  : '';
 
     $categories = get_terms(['taxonomy' => 'product_cat', 'hide_empty' => false, 'parent' => 0]);
     $current_cats = $product ? wp_get_post_terms($work_id, 'product_cat', ['fields' => 'ids']) : [];
@@ -271,6 +293,17 @@ function arted_tab_add_work() {
     echo '<input type="number" name="work_price" id="arted-work-price" class="arted-input arted-input-price" value="' . esc_attr($price) . '" placeholder="' . esc_attr($l['price_hint']) . '" min="0" step="1">';
     echo '<div id="arted-buyer-price" class="arted-field-hint arted-buyer-price-hint" style="' . ($buyer_preview ? '' : 'display:none') . '">' . esc_html($buyer_preview) . '</div>';
     echo '</div>';
+
+    // Размеры и вес
+    echo '<div class="arted-field">';
+    echo '<label class="arted-field-label">' . esc_html($l['dimensions']) . '</label>';
+    echo '<p class="arted-field-hint">' . esc_html($l['dim_hint']) . '</p>';
+    echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+    echo '<input type="number" name="work_length" class="arted-input" value="' . esc_attr($dim_l) . '" placeholder="' . esc_attr($l['dim_l']) . '" min="0" step="0.1">';
+    echo '<input type="number" name="work_width"  class="arted-input" value="' . esc_attr($dim_w) . '" placeholder="' . esc_attr($l['dim_w']) . '" min="0" step="0.1">';
+    echo '<input type="number" name="work_height" class="arted-input" value="' . esc_attr($dim_h) . '" placeholder="' . esc_attr($l['dim_h']) . '" min="0" step="0.1">';
+    echo '<input type="number" name="work_weight" class="arted-input" value="' . esc_attr($dim_weight) . '" placeholder="' . esc_attr($l['dim_weight']) . '" min="0" step="0.1">';
+    echo '</div></div>';
 
     // Категория
     if (!empty($categories)) {
@@ -368,6 +401,10 @@ function arted_handle_work_save() {
     $title        = sanitize_text_field($_POST['work_title'] ?? '');
     $desc         = sanitize_textarea_field($_POST['work_desc'] ?? '');
     $artist_price = floatval($_POST['work_price'] ?? 0);
+    $work_length  = floatval($_POST['work_length'] ?? 0);
+    $work_width   = floatval($_POST['work_width']  ?? 0);
+    $work_height  = floatval($_POST['work_height'] ?? 0);
+    $work_weight  = floatval($_POST['work_weight'] ?? 0);
     $cats         = array_map('intval', (array)($_POST['work_category'] ?? []));
 
     $commission_rate = arted_get_commission_rate();
@@ -428,6 +465,10 @@ function arted_handle_work_save() {
     update_post_meta($saved_id, 'arted_artist_price', $artist_price);
     update_post_meta($saved_id, '_price', $buyer_price);
     update_post_meta($saved_id, '_regular_price', $buyer_price);
+    if ($work_length > 0) update_post_meta($saved_id, '_length', $work_length);
+    if ($work_width  > 0) update_post_meta($saved_id, '_width',  $work_width);
+    if ($work_height > 0) update_post_meta($saved_id, '_height', $work_height);
+    if ($work_weight > 0) update_post_meta($saved_id, '_weight', $work_weight);
     update_post_meta($saved_id, '_visibility', 'visible');
     update_post_meta($saved_id, '_stock_status', 'instock');
 

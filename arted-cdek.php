@@ -69,7 +69,7 @@ function arted_cdek_city_code($city_name) {
 endif;
 
 if (!function_exists('arted_cdek_calculate_rate')) :
-function arted_cdek_calculate_rate($from_city, $to_city_code, $weight_g = 2000) {
+function arted_cdek_calculate_rate($from_city, $to_city_code, $weight_g = 2000, $length_cm = 50, $width_cm = 40, $height_cm = 5) {
     $from_code = arted_cdek_city_code($from_city);
     if (!$from_code || !$to_city_code) return null;
 
@@ -81,10 +81,10 @@ function arted_cdek_calculate_rate($from_city, $to_city_code, $weight_g = 2000) 
     $tariffs = [136, 137, 138, 139];
 
     $packages = [[
-        'weight' => $weight_g,
-        'length' => 50,
-        'width'  => 40,
-        'height' => 5,
+        'weight' => max(100, $weight_g),
+        'length' => max(1, (int)$length_cm),
+        'width'  => max(1, (int)$width_cm),
+        'height' => max(1, (int)$height_cm),
     ]];
 
     foreach ($tariffs as $tariff_code) {
@@ -172,7 +172,23 @@ class Arted_CDEK_Shipping extends WC_Shipping_Method {
                     $artist_city = get_user_meta($author_id, 'arted_artist_city', true)
                         ?: get_user_meta($author_id, 'billing_city', true)
                         ?: get_user_meta($author_id, 'shipping_city', true);
-                    $rate = $artist_city ? arted_cdek_calculate_rate($artist_city, $to_code) : null;
+
+                    // Суммируем вес, берём максимальные размеры по каждой оси
+                    $total_weight_g = 0;
+                    $max_l = 10; $max_w = 10; $max_h = 5;
+                    foreach ($items as $item) {
+                        $p = wc_get_product($item['product_id']);
+                        if (!$p) continue;
+                        $qty = (int)($item['quantity'] ?? 1);
+                        $w_kg = floatval($p->get_weight());
+                        $total_weight_g += max(100, $w_kg > 0 ? $w_kg * 1000 : 1000) * $qty;
+                        $max_l = max($max_l, floatval($p->get_length()) ?: 10);
+                        $max_w = max($max_w, floatval($p->get_width())  ?: 10);
+                        $max_h = max($max_h, floatval($p->get_height()) ?: 5);
+                    }
+                    if ($total_weight_g === 0) $total_weight_g = 2000;
+
+                    $rate = $artist_city ? arted_cdek_calculate_rate($artist_city, $to_code, $total_weight_g, $max_l, $max_w, $max_h) : null;
                     $dbg['artists'][] = ['id' => $author_id, 'city' => $artist_city, 'rate' => $rate];
                     if ($rate === null) continue;
 
