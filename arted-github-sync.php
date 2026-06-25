@@ -37,6 +37,7 @@ function arted_github_snippet_map() {
         'arted-payouts.php'               => 3144,
         'arted-cdek.php'                  => 3147,
         'arted-github-sync.php'           => 3122,
+        'arted-product-page.css'          => 3151,
     ];
 }
 
