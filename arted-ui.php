@@ -55,15 +55,24 @@ add_action('wp_head', function() { ?>
 
     function collapse(el) {
         el.classList.add('arted-theme-collapsed');
+
+        // Клик вешаем на родителя: после сворачивания до 14x14
+        // прозрачная Elementor-обёртка перехватывает тапы раньше самого виджета
+        var clickTarget = el.closest('.elementor-widget-html') || el.parentElement || el;
+
+        if (clickTarget._arted_expand_init) return;
+        clickTarget._arted_expand_init = true;
+
         function onTouch() {
+            if (!el.classList.contains('arted-theme-collapsed')) return;
             el.classList.remove('arted-theme-collapsed');
             clearTimeout(el._arted_timer);
             el._arted_timer = setTimeout(function() {
                 el.classList.add('arted-theme-collapsed');
             }, DELAY);
         }
-        el.addEventListener('touchstart', onTouch, { passive: true });
-        el.addEventListener('click', onTouch);
+        clickTarget.addEventListener('touchstart', onTouch, { passive: true });
+        clickTarget.addEventListener('click', onTouch);
     }
 
     function init() {
