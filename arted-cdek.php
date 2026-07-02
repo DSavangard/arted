@@ -406,3 +406,49 @@ add_action('woocommerce_admin_order_data_after_shipping_address', function($orde
         echo '<p><strong>ПВЗ СДЭК:</strong> ' . esc_html($address) . ' <span style="color:#888">(' . esc_html($code) . ')</span></p>';
     }
 });
+
+// ── Фиксированный сбор за международный заказ: $200 в рублях ─────────────
+// Применяется когда страна доставки НЕ Россия. Курс USD/RUB берётся с ЦБ РФ.
+
+function arted_get_usd_rub_rate() {
+    $cached = get_transient('arted_usd_rub_rate');
+    if ($cached !== false) return (float) $cached;
+
+    $response = wp_remote_get('https://www.cbr-xml-daily.ru/daily_json.js', ['timeout' => 8]);
+    if (is_wp_error($response)) return 90.0;
+
+    $data = json_decode(wp_remote_retrieve_body($response), true);
+    if (!isset($data['Valute']['USD']['Value'])) return 90.0;
+
+    $rate = (float) $data['Valute']['USD']['Value'];
+    set_transient('arted_usd_rub_rate', $rate, 12 * HOUR_IN_SECONDS);
+    return $rate;
+}
+
+add_action('woocommerce_cart_calculate_fees', function(WC_Cart $cart) {
+    if (is_admin() && !defined('DOING_AJAX')) return;
+    $country = WC()->customer->get_shipping_country();
+    if (!$country || $country === 'RU') return;
+
+    $rate = arted_get_usd_rub_rate();
+    $lang = function_exists('arted_get_lang') ? arted_get_lang() : 'ru';
+    $labels = [
+        'ru' => 'Международная доставка и оформление',
+        'en' => 'International shipping & handling',
+        'fr' => 'Livraison et traitement international',
+    ];
+    $cart->add_fee($labels[$lang] ?? $labels['ru'], round(200 * $rate, 2), true);
+});
+
+add_filter('woocommerce_cart_totals_fee_html', function($fee_html, $fee) {
+    if (!str_contains($fee->name, 'International') && !str_contains($fee->name, 'Международная') && !str_contains($fee->name, 'Livraison')) {
+        return $fee_html;
+    }
+    $lang = function_exists('arted_get_lang') ? arted_get_lang() : 'ru';
+    $notes = [
+        'ru' => ' <small style="color:#888;font-size:11px">(≈ $200 по курсу ЦБ)</small>',
+        'en' => ' <small style="color:#888;font-size:11px">(≈ $200 at CBR rate)</small>',
+        'fr' => ' <small style="color:#888;font-size:11px">(≈ 200$ au taux CBR)</small>',
+    ];
+    return $fee_html . ($notes[$lang] ?? $notes['ru']);
+}, 10, 2);

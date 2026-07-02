@@ -1,16 +1,24 @@
 <?php
+// ── Фронтенд UI: мигание тёмной темы + автосворачивание виджета темы ──────
+
+// ── Предотвращение белого мигания при переходе между страницами ───────────
+// Причина: браузер рендерит страницу с дефолтным светлым фоном до того,
+// как Elementor добавит класс dark-theme на body.
+add_action('wp_head', function() {
+    echo '<style id="arted-critical-bg">
+html{background:#070707}
+html body{background:#070707}
+</style>';
+}, -99);
+
 // ── Автосворачивание окна выбора темы на мобильных через 2.5 сек ─────────
-// На мобильных (≤ 768px) окно с выбором темы сворачивается в круглую точку
-// через 2.5 сек после открытия или после загрузки страницы.
-//
-// СЕЛЕКТОР: обновить ARTED_THEME_WIDGET_SELECTOR под реальный класс виджета.
-// Найти: открыть DevTools → нажать на окно темы → скопировать класс блока.
+// Виджет с классом .theme-toggle-mob (в контейнере .dot-mobile) сворачивается
+// в 14×14px точку через 2.5 сек, разворачивается при касании.
 
 define('ARTED_THEME_WIDGET_SELECTOR', '.theme-toggle-mob');
 
 add_action('wp_head', function() { ?>
 <style>
-/* ── Анимация сворачивания в точку ──────────────────────────────────── */
 @media (max-width: 768px) {
     .arted-theme-collapsed {
         width:  14px !important;
@@ -24,10 +32,7 @@ add_action('wp_head', function() { ?>
         transition: width .4s ease, height .4s ease, opacity .4s ease, border-radius .4s ease !important;
         cursor: pointer !important;
     }
-    .arted-theme-collapsed > * {
-        display: none !important;
-    }
-    /* При касании — разворачивается обратно */
+    .arted-theme-collapsed > * { display: none !important; }
     .arted-theme-collapsed:active,
     .arted-theme-collapsed:focus-within {
         width:  auto !important;
@@ -38,9 +43,7 @@ add_action('wp_head', function() { ?>
         padding: revert !important;
     }
     .arted-theme-collapsed:active > *,
-    .arted-theme-collapsed:focus-within > * {
-        display: revert !important;
-    }
+    .arted-theme-collapsed:focus-within > * { display: revert !important; }
 }
 </style>
 <script>
@@ -48,12 +51,10 @@ add_action('wp_head', function() { ?>
     if (window.innerWidth > 768) return;
 
     var SEL   = <?= json_encode(ARTED_THEME_WIDGET_SELECTOR) ?>;
-    var DELAY = 2500; // мс
+    var DELAY = 2500;
 
     function collapse(el) {
         el.classList.add('arted-theme-collapsed');
-
-        // Разворачиваем при касании, снова сворачиваем через 2.5 сек
         function onTouch() {
             el.classList.remove('arted-theme-collapsed');
             clearTimeout(el._arted_timer);
@@ -66,8 +67,7 @@ add_action('wp_head', function() { ?>
     }
 
     function init() {
-        var els = document.querySelectorAll(SEL);
-        els.forEach(function(el) {
+        document.querySelectorAll(SEL).forEach(function(el) {
             if (el._arted_collapse_init) return;
             el._arted_collapse_init = true;
             el._arted_timer = setTimeout(function() { collapse(el); }, DELAY);
