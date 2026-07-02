@@ -38,6 +38,10 @@ function arted_github_snippet_map() {
         'arted-cdek.php'                  => 3147,
         'arted-github-sync.php'           => 3122,
         'arted-product-page.css'          => 3151,
+        'arted-dark-flash.php'            => 3152,
+        'arted-intl-fee.php'              => 3153,
+        'arted-login-register-btn.php'    => 3154,
+        'arted-theme-collapse.php'        => 3155,
     ];
 }
 
